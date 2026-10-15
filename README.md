@@ -1,123 +1,172 @@
 # AuRA: Aurum Relative-value Analytics
 
-**Team Lightning Logics · Hack in Hills '26 · Track 03: Commodity Derivatives Intelligence**
+**Do MCX's four gold futures price the same gold the same way, and can anyone profit when they don't?**
 
-**Live dashboard: https://aura.lightninglogics.me** · live monitor at `/live` · API under `/api/*` (see below)
-· **Demo video: https://youtu.be/29peqQnTcX8**
+Team **Lightning Logics** · Hack in Hills '26 · Track 03: Commodity Derivatives Intelligence
 
-MCX lists four gold futures on the same metal: GOLDM, GOLDTEN, GOLDGUINEA and GOLDPETAL.
-Once lot size, quote unit, purity and delivery date are accounted for, their prices should
-agree. AuRA measures where they don't, separates mechanical carry from genuine dislocation,
-and tests on unseen data whether any gap survives real trading costs. Proving that no edge
-survives costs is an accepted outcome for this track, and AuRA reports it as plainly as an edge.
-
-## Results (MCX bhavcopy, 01 Jan 2024 – 14 Oct 2026)
-
-716 sessions and 11,789 contract-days ingested; GOLDTEN pairs cover 395 sessions from its
-April 2025 listing.
-
-**Verdict: no persistent edge survives costs out of sample.**
-
-| PETAL vs GOLDTEN, net of all costs | Development (Apr 2025 – Apr 2026) | Holdout (Apr – Oct 2026, untouched) |
-|---|---|---|
-| Trades | 14 | 7 |
-| Net bps per trade | +22.1 | −1.4 |
-| Net bps per trade, excluding the best trade | +7.6 | −3.7 |
-| Sharpe (annualised) | 0.92 | −0.45 |
-| Block-bootstrap p-value | 0.12 | 0.76 |
-| Deflated Sharpe probability (9 trials) | 0.74 | 0.38 |
-
-78% of the development profit came from a single exit at the 30 January 2026 close, a
-gold sell-off day on which contracts closed at inconsistent prices that could not have been
-traded. GUINEA vs GOLDTEN made 4 development trades and none in the holdout.
-
-What the data does show:
-
-- **Small lots carry a standing premium.** GOLDPETAL's median premium to GOLDTEN for the same
-  expiry is +69 bps and it never fell below +11 bps; GOLDGUINEA's median is +51 bps. It is
-  structural, not a mispricing that converges.
-- **The carry trap is real.** GOLDM looks 24.6 bps cheap against GOLDTEN on a naive per-gram
-  comparison; after purity it is +15.5 bps and after carry +6.7 bps (medians, 395 sessions).
-- **Carry and roll-down.** The GOLDTEN front curve implies a median 9.7% a year carry;
-  mechanical roll-down accounts for about 4% of a typical day's move, the rest is genuine shift.
-- **Lifecycle.** A new contract takes a median 58 sessions (PETAL, GUINEA), 68 (GOLDTEN) or
-  37 (GOLDM) from first trade to carrying half its symbol's open interest.
-
-## What it does
-
-| Track 03 direction | Where |
+| | |
 |---|---|
-| Cross-contract relative value: size, quote unit, purity (995 vs 999) | `aura/specs.py`, `analytics.panel` |
-| Term structure and carry: futures curve, roll-down vs genuine curve shift | `analytics.curve_at`, `analytics.roll_down_split` |
-| Walk-forward backtest: day-by-day, no look-ahead, slippage and liquidity | `aura/backtest.py`, test `test_future_data_cannot_change_past_trades` |
-| Trader-facing intelligence: suppress noise, isolate edge from gold beta | dashboard signals (z-score **and** cost hurdle), beta and correlation per backtest |
-| Contract lifecycle: listing, liquidity maturation, delivery window, expiry | `analytics.lifecycle`, dashboard table |
+| Live dashboard | https://aura.lightninglogics.me |
+| Live MCX monitor | https://aura.lightninglogics.me/live |
+| Demo video (2 min) | https://youtu.be/29peqQnTcX8 |
 
-Data rules from the brief, all enforced in `aura/ingest.py`:
-request dates are DD/MM/YYYY while responses are MM/DD/YYYY; a holiday may return no rows or
-the last session (both are skipped, never counted as a new session); contracts are tracked by
-exact expiry, never a near-month series; untraded rows are dropped because their close is not
-a tradeable price; GOLDTEN only lists from April 2025, so its pairs have a shorter history.
+---
 
-## Method
+## In 30 seconds
 
-1. **Normalise**: ₹ per gram of fine gold = price ÷ quote grams ÷ purity.
-2. **Premium** vs GOLDTEN for the same expiry, in bps. Same delivery date, so carry cancels.
-3. **GOLDM** expires on a different date, so it is compared with the GOLDTEN curve read at
-   GOLDM's expiry (log-linear between the nearest expiries).
-4. **Signal**: z-score of the premium against its trailing window (past sessions only). Enter
-   when |z| exceeds the threshold, exit when it reverts, after a maximum hold, or before the
-   delivery window. Decisions at close t execute at close t+1.
-5. **Hedge** in whole lots holding equal grams: 100 PETAL vs 10 TEN, 10 GUINEA vs 8 TEN.
-6. **Costs** per leg per side: MCX fee 0.0021%, SEBI fee 0.0001%, stamp duty 0.002% (buy),
-   CTT 0.01% (sell), GST 18% on fees and brokerage, ₹20 brokerage per order, and an assumed
-   slippage of 1.5 bps (GOLDTEN) or 3 bps (PETAL, GUINEA).
-7. **Validation**: parameters are chosen on the development period only from a 9-point grid;
-   the final 6 months are an untouched holdout. Reported per period: trades, win rate, gross,
-   cost and net bps per trade, Sharpe, max drawdown, correlation and beta to gold, a block
-   bootstrap p-value and the deflated Sharpe ratio (which accounts for the 9 trials).
+- We pulled **716 trading sessions of real MCX data** (Jan 2024 – Oct 2026) for GOLDM, GOLDTEN, GOLDGUINEA and GOLDPETAL.
+- After converting every contract to **₹ per gram of fine gold**, small lots trade at a **standing premium**: GOLDPETAL sits a median **+69 bps** above GOLDTEN for the same delivery date.
+- A walk-forward strategy trading the gaps made money in development, but **lost 1.4 bps per trade after costs on an untouched 6-month holdout**.
+- **Verdict: no persistent edge survives execution costs.** Track 03 explicitly accepts a rigorous no-edge proof as a valid result, and this is one.
 
-## Run it
+---
+
+## 1. The problem
+
+MCX lists four gold futures on the same metal:
+
+| Contract | Lot | Price quoted per | Purity | Expiry |
+|---|---|---|---|---|
+| GOLDM | 100 g | 10 g | 995 | 3rd–5th of the month |
+| GOLDTEN | 10 g | 10 g | 999 | 27th–31st |
+| GOLDGUINEA | 8 g | 8 g | 999 | 27th–31st |
+| GOLDPETAL | 1 g | 1 g | 999 | 27th–31st |
+
+Raw prices can't be compared: lot size, quote unit, purity and expiry all differ. Once they're
+normalised, the prices should agree. **AuRA measures where they don't, explains why, and tests
+whether the gap is tradeable after real costs.**
+
+## 2. How AuRA works
+
+1. **Normalise:** `₹/g fine = price ÷ quote grams ÷ purity`, so every contract is like for like.
+2. **Compare same delivery dates:** the premium of PETAL and GUINEA over GOLDTEN for the *same expiry*, so carry cancels out.
+3. **Handle carry honestly:** GOLDM expires on different dates, so it is compared with the GOLDTEN futures curve read at GOLDM's expiry. This separates mechanical roll-down from genuine dislocation.
+4. **Signal:** a z-score of each premium against its own trailing history (past data only).
+5. **Test it like real money:** a walk-forward backtest with no look-ahead (decide at today's close, trade at tomorrow's), whole-lot hedges holding equal grams of gold (100 PETAL vs 10 GOLDTEN), P&L on the contracts actually held, and every cost:
+
+   | Cost (per leg, per side) | Rate |
+   |---|---|
+   | MCX transaction fee | 0.0021% |
+   | SEBI turnover fee | 0.0001% |
+   | Stamp duty (buy) | 0.002% |
+   | Commodity transaction tax (sell) | 0.01% |
+   | GST | 18% on fees and brokerage |
+   | Brokerage (assumed) | ₹20 per order |
+   | Slippage (assumed) | 1.5 bps GOLDTEN, 3 bps PETAL / GUINEA |
+
+   Together these make a **13 bps break-even** for each round trip.
+6. **Validate:** parameters are picked from a 9-point grid on the development period only. The final 6 months stay untouched until the last test. We report a block-bootstrap p-value and the deflated Sharpe ratio, which corrects for having tried 9 settings.
+
+## 3. Results
+
+**PETAL vs GOLDTEN, net of every cost**
+
+| | Development (Apr 2025 – Apr 2026) | **Holdout (Apr – Oct 2026, untouched)** |
+|---|---|---|
+| Trades | 14 | **7** |
+| Net bps per trade | +22.1 | **−1.4** |
+| Net bps, excluding the best trade | +7.6 | **−3.7** |
+| Sharpe (annualised) | 0.92 | **−0.45** |
+| Bootstrap p-value | 0.12 | **0.76** |
+| Deflated Sharpe probability | 0.74 | **0.38** |
+
+**Why the development profit was an illusion:** 78% of it came from one exit at the
+**30 Jan 2026 close**, a gold sell-off day when contracts closed at inconsistent prices nobody
+could actually trade. Without that trade the development edge is +7.6 bps, and on the holdout
+it turns negative. GUINEA vs GOLDTEN traded too rarely to judge: 4 trades in development, none
+in the holdout.
+
+**What the data does show**
+
+- **Small lots carry a standing premium, not a mispricing.** PETAL: median +69 bps over GOLDTEN, never below +11 bps. GUINEA: median +51 bps.
+- **The carry trap is real.** GOLDM looks 24.6 bps *cheap* on a naive comparison. After purity it is +15.5 bps, and after carry +6.7 bps (medians over 395 sessions).
+- **Carry vs genuine moves.** The GOLDTEN curve implies about 9.7% a year carry. Mechanical roll-down explains only about 4% of a typical day's price move.
+- **Contract lifecycle.** A new contract takes a median 58 sessions (PETAL, GUINEA), 68 (GOLDTEN) or 37 (GOLDM) to become the liquid one.
+
+## 4. Live monitor
+
+[`/live`](https://aura.lightninglogics.me/live) reads MCX's quote feed, including the
+**5-level order book**, every 15 seconds and shows:
+
+- **Last-trade and executable premiums.** The executable premium is what you would actually get selling the small lot at the bid and buying GOLDTEN at the ask.
+- **Flags only when they matter:** a pair is flagged only if it is statistically unusual **and** the executable gap clears the 13 bps cost hurdle. Every card says why it is, or isn't, flagged.
+- The day's premium chart, plus bid, ask, spread, volume and open interest for every leg.
+
+MCX serves its data only to real browsers, so the feed runs from a machine with Microsoft
+Edge (`start_live.bat`) during MCX hours. When no feed is running, the page replays **the
+last real session**, labelled as a replay, never stale or invented numbers.
+
+## 5. How each Track 03 requirement is met
+
+| Track 03 asks for | Where |
+|---|---|
+| Relative value: normalise size, quote unit, purity (995 vs 999) | `aura/specs.py`, `analytics.panel` |
+| Term structure: model the curve, split roll-down from genuine shifts | `analytics.curve_at`, `analytics.roll_down_split` |
+| Day-by-day walk-forward, no look-ahead, slippage and liquidity | `aura/backtest.py`; test `test_future_data_cannot_change_past_trades` |
+| Trader-facing intelligence: suppress noise, separate edge from gold-price moves | dashboard and `/live` (z-score + cost hurdle); gold beta and correlation per backtest |
+| Contract lifecycle: listing, liquidity build-up, delivery window, expiry | `analytics.lifecycle`, dashboard table |
+| Validated on unseen data, net of costs, on held contracts | untouched 6-month holdout; P&L marked on the expiry actually held |
+| **Data traps:** DD/MM requests vs MM/DD responses; holidays; exact expiry IDs; settlement ≠ fill; GOLDTEN's short history | `aura/ingest.py` (all handled, with tests); untraded rows dropped; TEN pairs start Apr 2025 |
+
+## 6. Architecture
+
+```mermaid
+flowchart LR
+  A["MCX bhavcopy<br/>716 sessions"] --> B["Ingest & validate<br/>dates · holidays · expiry"]
+  B --> C["Normalise<br/>₹ per g fine gold"]
+  C --> D["Curve & carry<br/>roll-down split"]
+  D --> E["Premiums & z-scores"]
+  E --> F["Walk-forward backtest<br/>full costs · holdout"]
+  F --> G[("results.json")]
+  L["MCX live quotes<br/>order book · 15 s"] --> M["Live poller"]
+  M --> N[("live snapshot /<br/>session archive")]
+  G --> API["FastAPI on Vercel"]
+  N --> API
+  API --> UI["Dashboard and /live"]
+```
+
+**Stack:** Python 3.12 · Playwright (Edge) · DuckDB · pandas / NumPy · FastAPI · Plotly · Vercel
+
+| API endpoint | Returns |
+|---|---|
+| `/api/summary` | data coverage, premium statistics, carry, roll-down split, cost hurdle, verdict |
+| `/api/signals` | latest reading per pair and why it is or isn't flagged |
+| `/api/backtest` | development and holdout results, every trade |
+| `/api/contracts` | lifecycle of every contract |
+| `/api/series` | daily series behind the charts |
+| `/api/live` | latest live snapshot and the day's ticks |
+
+## 7. Run it yourself
 
 ```bash
 python -m venv .venv
-.venv/Scripts/python -m pip install -r requirements-dev.txt   # Windows; use .venv/bin/python elsewhere
-.venv/Scripts/python -m aura.ingest --start 2024-01-01      # pulls MCX bhavcopy into data/
-.venv/Scripts/python -m aura.report                         # writes data/results.json
-.venv/Scripts/python -m uvicorn aura.api:app --port 8000    # dashboard at http://localhost:8000
-.venv/Scripts/python -m pytest -q
+.venv/Scripts/python -m pip install -r requirements-dev.txt   # macOS/Linux: .venv/bin/python
+.venv/Scripts/python -m aura.ingest --start 2024-01-01         # pull MCX history into data/
+.venv/Scripts/python -m aura.report                            # run the analysis -> data/results.json
+.venv/Scripts/python -m uvicorn aura.api:app --port 8000       # dashboard at http://localhost:8000
+.venv/Scripts/python -m aura.live                              # optional: live feed (MCX hours)
+.venv/Scripts/python -m pytest -q                              # 17 tests
 ```
 
-MCX's site rejects plain HTTP clients, so `aura.ingest` drives Microsoft Edge through
-Playwright and calls the same endpoint the public bhavcopy page uses. Every raw response is
-cached in `data/raw/`, so analysis is reproducible and re-runs never re-fetch a day.
+Every raw MCX response is cached in `data/raw/`, so results are reproducible and re-runs never
+fetch a day twice.
 
-## Deployment
+```
+aura/        specs (contract mechanics) · ingest · analytics · backtest · stats · report · live · api
+api/         Vercel entry point
+public/      dashboard (index.html) and live monitor (live.html)
+data/        results.json and last_session.json (committed); raw cache (not committed)
+tests/       units, date parsing, costs, no look-ahead, live flag rules, API fallbacks
+```
 
-Hosted on Vercel: `public/index.html` is served from the CDN and `api/index.py` runs the
-FastAPI app as a serverless function over the committed `data/results.json`. Every push to
-`main` redeploys. Data refresh runs locally (the MCX pull needs a real browser), then:
-`python -m aura.ingest && python -m aura.report`, commit `data/results.json`, push.
+## 8. Limitations
 
-## API
+- **Backtest fills** use the daily close plus assumed slippage; intraday order-book history isn't public. The live monitor does use the real bid/ask.
+- **Brokerage and slippage are assumptions.** Statutory rates should be checked against a broker contract note.
+- **Short history:** GOLDTEN listed in April 2025, so the holdout has only 7 trades. That's why the bootstrap and deflated Sharpe are reported alongside the raw numbers.
+- **The live feed needs a machine running the poller.** A production version would use a licensed broker data feed for 24/7 coverage.
 
-| Endpoint | Returns |
-|---|---|
-| `GET /api/summary` | data coverage, premium statistics, carry, roll-down split, cost hurdle |
-| `GET /api/signals` | today's reading per pair and why it is or is not a trade |
-| `GET /api/backtest` | development and holdout results, every trade |
-| `GET /api/contracts` | lifecycle per contract |
-| `GET /api/series` | daily series behind the charts |
-
-## Limitations
-
-- Bhavcopy closes are used as fill prices plus assumed slippage; no intraday or order-book data.
-- Slippage and the brokerage fee are assumptions; statutory rates should be checked against a
-  broker contract note.
-- GOLDTEN pairs have about 18 months of history, so the holdout is short and results carry
-  wide uncertainty; the bootstrap and deflated Sharpe are reported for exactly this reason.
-
-## Team
+## Team Lightning Logics
 
 | Member | Role |
 |---|---|
