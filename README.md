@@ -2,6 +2,8 @@
 
 **Team Lightning Logics · Hack in Hills '26 · Track 03: Commodity Derivatives Intelligence**
 
+**Live dashboard: https://aura.lightninglogics.me** · API under `/api/*` (see below)
+
 MCX lists four gold futures on the same metal: GOLDM, GOLDTEN, GOLDGUINEA and GOLDPETAL.
 Once lot size, quote unit, purity and delivery date are accounted for, their prices should
 agree. AuRA measures where they don't, separates mechanical carry from genuine dislocation,
@@ -88,6 +90,13 @@ python -m venv .venv
 MCX's site rejects plain HTTP clients, so `aura.ingest` drives Microsoft Edge through
 Playwright and calls the same endpoint the public bhavcopy page uses. Every raw response is
 cached in `data/raw/`, so analysis is reproducible and re-runs never re-fetch a day.
+
+## Deployment
+
+Hosted on Vercel: `public/index.html` is served from the CDN and `api/index.py` runs the
+FastAPI app as a serverless function over the committed `data/results.json`. Every push to
+`main` redeploys. Data refresh runs locally (the MCX pull needs a real browser), then:
+`python -m aura.ingest && python -m aura.report`, commit `data/results.json`, push.
 
 ## API
 
