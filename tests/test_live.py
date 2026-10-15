@@ -70,7 +70,7 @@ def test_api_replays_committed_session_when_no_poller_runs(tmp_path, monkeypatch
     monkeypatch.setattr(api, "SESSION", tmp_path / "session.json")
     for k in ("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"):
         monkeypatch.delenv(k, raising=False)
-    snap = {"published": time.time() - 3 * 3600, "poll_s": 15, "market_open": True, "pairs": []}
+    snap = {"published": time.time() - 5, "poll_s": 15, "market_open": True, "pairs": []}  # recent, yet archived
     (tmp_path / "session.json").write_text(json.dumps({"snapshot": snap, "ticks": [{"t": 1}]}))
     out = api.live()
     assert out["status"] == "replay" and out["source"] == "session archive" and out["ticks"] == [{"t": 1}]

@@ -88,7 +88,9 @@ def live() -> dict:
     if snap is None:
         return {"status": "offline", "source": None, "ticks": []}
     age = time.time() - snap["published"]
-    if age < 3 * snap["poll_s"]:
+    if source == "session archive":  # a frozen copy is never live, however recent
+        status = "replay"
+    elif age < 3 * snap["poll_s"]:
         status = "live" if snap["market_open"] else "closed"
     elif age < 600:
         status = "delayed"
