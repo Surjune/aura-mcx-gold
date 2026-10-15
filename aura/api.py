@@ -4,13 +4,14 @@ Usage:  uvicorn aura.api:app --port 8000   then open http://localhost:8000
 Serves the results written by `python -m aura.report`.
 """
 import json
-import os
 import time
 import urllib.request
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+
+from aura.config import upstash
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "data" / "results.json"
@@ -57,8 +58,7 @@ def series() -> dict:
 
 
 def _upstash(cmds: list[list[str]]) -> list:
-    url = os.environ.get("KV_REST_API_URL")
-    token = os.environ.get("KV_REST_API_READ_ONLY_TOKEN") or os.environ.get("KV_REST_API_TOKEN")
+    url, token = upstash(read_only=True)
     req = urllib.request.Request(url.rstrip("/") + "/pipeline", data=json.dumps(cmds).encode(), method="POST",
                                  headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=5) as r:
@@ -68,7 +68,7 @@ def _upstash(cmds: list[list[str]]) -> list:
 @app.get("/api/live")
 def live() -> dict:
     """Latest real-time snapshot from the poller plus today's ticks; status "offline" if none."""
-    if os.environ.get("KV_REST_API_URL"):
+    if all(upstash(read_only=True)):
         snap, ticks = _upstash([["GET", "aura:live"], ["LRANGE", "aura:ticks", "0", "-1"]])
         snap = json.loads(snap) if snap else None
         ticks = [json.loads(t) for t in ticks or []]

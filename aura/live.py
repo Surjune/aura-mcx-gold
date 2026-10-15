@@ -20,6 +20,7 @@ import duckdb
 
 from aura.analytics import MIN_DTE
 from aura.ingest import DB, USER_AGENT
+from aura.config import upstash
 from aura.specs import BASE, fine_per_gram
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -155,7 +156,7 @@ def publish(snap: dict) -> None:
         ticks = (ticks + [tick])[-MAX_TICKS:]
     LIVE.write_text(json.dumps(snap), encoding="utf-8")
     TICKS.write_text(json.dumps(ticks), encoding="utf-8")
-    url, token = os.environ.get("KV_REST_API_URL"), os.environ.get("KV_REST_API_TOKEN")
+    url, token = upstash()
     if url and token:
         cmds = [["SET", "aura:live", json.dumps(snap), "EX", str(TICK_TTL_S)], ["RPUSH", "aura:ticks", json.dumps(tick)],
                 ["LTRIM", "aura:ticks", str(-MAX_TICKS), "-1"]]
@@ -170,7 +171,7 @@ def run() -> None:
 
     load_env()
     hist = history()
-    remote = "and Upstash" if os.environ.get("KV_REST_API_URL") and os.environ.get("KV_REST_API_TOKEN") else "(local only: no Upstash keys)"
+    remote = "and Upstash" if all(upstash()) else "(local only: no Upstash keys)"
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="msedge", headless=True, args=["--disable-blink-features=AutomationControlled"])
         page = browser.new_context(user_agent=USER_AGENT, locale="en-IN").new_page()

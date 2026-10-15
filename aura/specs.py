@@ -31,3 +31,4 @@ def quote_units(symbol: str, lots: int) -> float:
     """Number of quote units held, so P&L = price change x quote_units."""
     c = CONTRACTS[symbol]
     return lots * c.lot_g / c.quote_g
+
