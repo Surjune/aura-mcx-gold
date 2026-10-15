@@ -120,7 +120,10 @@ function render(d) {
     <p class="note">A live flag needs an unusual z-score and an executable gap above the cost hurdle. The walk-forward found no persistent edge, so flags are informational.</p>`;
 
   const day = s.polled_ist.slice(0, 10), istDay = ts => new Date((ts + 19800) * 1000).toISOString().slice(0, 10);
-  const t = (d.ticks || []).filter(k => istDay(k.t) === day), x = t.map(k => new Date(k.t * 1000));
+  // Break the lines wherever the feed paused for more than 10 minutes, instead of drawing a flat bridge.
+  const t = (d.ticks || []).filter(k => istDay(k.t) === day).flatMap((k, i, a) =>
+    i && k.t - a[i - 1].t > 600 ? [{ t: a[i - 1].t + 1 }, k] : [k]);
+  const x = t.map(k => new Date(k.t * 1000));
   const traces = [
     { x, y:t.map(k => k.p0), name:'PETAL', line:{ color:C.gold, width:2 } },
     { x, y:t.map(k => k.e0), name:'PETAL exec', line:{ color:C.gold, width:1, dash:'dot' } },
