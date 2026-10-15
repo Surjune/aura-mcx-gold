@@ -111,14 +111,18 @@ last real session**, labelled as a replay, never stale or invented numbers.
 ## 6. Architecture
 
 ```mermaid
-flowchart LR
-  A[MCX bhavcopy - 716 sessions] --> B[Ingest and validate]
-  B --> C[Normalise to Rs per gram of fine gold]
-  C --> D[Curve, carry and roll-down]
-  D --> E[Premiums and z-scores]
-  E --> F[Walk-forward backtest with full costs]
+flowchart TD
+  subgraph Research [Research pipeline - daily]
+    A[MCX bhavcopy - 716 sessions] --> B[Ingest and validate]
+    B --> C[Normalise to Rs per gram of fine gold]
+    C --> D[Curve, carry and roll-down]
+    D --> E[Premiums and z-scores]
+    E --> F[Walk-forward backtest with full costs]
+  end
+  subgraph Live [Live feed - every 15 s]
+    L[MCX quotes with order book] --> M[Live poller]
+  end
   F --> G[results.json]
-  L[MCX live quotes every 15 s] --> M[Live poller]
   M --> N[Live snapshot and session archive]
   G --> S[FastAPI on Vercel]
   N --> S
