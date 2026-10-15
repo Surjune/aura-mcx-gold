@@ -9,8 +9,9 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-ROOT = Path(__file__).resolve().parent
-RESULTS = ROOT.parent / "data" / "results.json"
+ROOT = Path(__file__).resolve().parent.parent
+RESULTS = ROOT / "data" / "results.json"
+DASHBOARD = ROOT / "public" / "index.html"  # on Vercel the CDN serves this file directly
 
 app = FastAPI(title="AuRA", description="Relative-value analytics for MCX gold futures")
 
@@ -52,4 +53,4 @@ def series() -> dict:
 
 @app.get("/")
 def dashboard() -> FileResponse:
-    return FileResponse(ROOT / "dashboard" / "index.html")
+    return FileResponse(DASHBOARD)

@@ -78,7 +78,7 @@ a tradeable price; GOLDTEN only lists from April 2025, so its pairs have a short
 
 ```bash
 python -m venv .venv
-.venv/Scripts/python -m pip install -r requirements.txt   # Windows; use .venv/bin/python elsewhere
+.venv/Scripts/python -m pip install -r requirements-dev.txt   # Windows; use .venv/bin/python elsewhere
 .venv/Scripts/python -m aura.ingest --start 2024-01-01      # pulls MCX bhavcopy into data/
 .venv/Scripts/python -m aura.report                         # writes data/results.json
 .venv/Scripts/python -m uvicorn aura.api:app --port 8000    # dashboard at http://localhost:8000
