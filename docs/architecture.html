@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AuRA architecture</title>
+<!-- Source for docs/architecture.png. Render: open at 1600x1000 and screenshot #canvas at 2x. -->
+<style>
+  :root { --navy:#1E3A5F; --deep:#132840; --gold:#B8862B; --gold-l:#F2D58A; --tint:#F7F0E1; --ice:#EEF2F7;
+          --line:#C9D3E0; --ink:#1D1D1F; --muted:#5B6573; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #fff; font-family: "Segoe UI", Calibri, Arial, sans-serif; color: var(--ink); }
+  #canvas { position: relative; width: 1600px; padding: 44px 48px 48px; background: #fff; }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 26px; }
+  header h1 { font-size: 34px; color: var(--navy); font-weight: 800; letter-spacing: -.01em; }
+  header h1 b { color: var(--gold); }
+  header span { font-size: 17px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: 1fr 300px; gap: 44px; align-items: stretch; }
+  .lanes { display: flex; flex-direction: column; gap: 26px; }
+  .lane { position: relative; border: 1.5px solid var(--line); border-radius: 18px; background: #FAFBFD; padding: 54px 22px 22px; }
+  .lane.live { background: #FCF9F2; border-color: #E5D3A8; }
+  .lane-tag { position: absolute; top: 16px; left: 22px; font-size: 14px; font-weight: 800; letter-spacing: .12em;
+              text-transform: uppercase; color: #fff; background: var(--navy); padding: 5px 14px; border-radius: 14px; }
+  .live .lane-tag { background: var(--gold); }
+  .lane-note { position: absolute; top: 18px; right: 22px; font-size: 14px; color: var(--muted); }
+  .row { display: flex; align-items: stretch; gap: 0; }
+  .node { flex: 1; background: #fff; border: 1.5px solid var(--line); border-radius: 14px; padding: 14px 15px;
+          box-shadow: 0 4px 14px rgba(30,58,95,.08); min-width: 0; }
+  .node .ic { width: 34px; height: 34px; border-radius: 50%; background: var(--navy); color: #fff; display: flex;
+              align-items: center; justify-content: center; font-size: 16px; font-weight: 800; margin-bottom: 10px; }
+  .live .node .ic { background: var(--gold); }
+  .node h3 { font-size: 17px; color: var(--navy); font-weight: 800; line-height: 1.2; }
+  .node p { font-size: 13.5px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+  .node code { font-family: Consolas, monospace; font-size: 12.5px; background: var(--ice); padding: 1px 5px; border-radius: 4px; color: var(--navy); }
+  .node.store { background: var(--ice); border-style: dashed; }
+  .arrow { flex: 0 0 34px; display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 26px; font-weight: 800; }
+  .serve { position: relative; border: 2px solid var(--navy); border-radius: 18px; background: #fff; padding: 54px 20px 20px;
+           display: flex; flex-direction: column; gap: 10px; }
+  .serve .lane-tag { background: var(--deep); }
+  .ep { font-family: Consolas, monospace; font-size: 14px; color: var(--navy); background: var(--ice); border-radius: 8px; padding: 7px 10px; }
+  .serve h4 { font-size: 15px; color: var(--muted); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
+  .site { margin-top: auto; background: var(--navy); color: #fff; border-radius: 14px; padding: 16px; text-align: center; }
+  .site b { display: block; font-size: 19px; color: var(--gold-l); }
+  .site span { font-size: 13.5px; color: #C9D3E0; }
+  .page { display: flex; gap: 10px; }
+  .page div { flex: 1; border: 1.5px solid var(--line); border-radius: 10px; padding: 10px; font-size: 14px; color: var(--navy); font-weight: 700; text-align: center; }
+  .page div span { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .facts { display: flex; gap: 14px; margin-top: 16px; }
+  .fact { flex: 1; background: var(--tint); border: 1.5px solid #E5D3A8; border-radius: 12px; padding: 10px 14px; font-size: 14px; color: var(--ink); }
+  .fact b { color: var(--navy); }
+  svg#wires { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+</style>
+</head>
+<body>
+<div id="canvas">
+  <header>
+    <h1><b>Au</b>RA architecture</h1>
+    <span>MCX gold futures · real data end to end · Hack in Hills '26, Track 03</span>
+  </header>
+  <div class="grid">
+    <div class="lanes">
+      <section class="lane">
+        <span class="lane-tag">Research pipeline</span><span class="lane-note">runs on demand · reproducible from cache</span>
+        <div class="row">
+          <div class="node"><div class="ic">1</div><h3>MCX bhavcopy</h3><p>716 sessions, Jan 2024 – Oct 2026, all 4 gold contracts</p></div>
+          <div class="arrow">›</div>
+          <div class="node"><div class="ic">2</div><h3>Ingest &amp; validate</h3><p>Playwright + Edge · DD/MM vs MM/DD · holidays · exact expiry IDs</p></div>
+          <div class="arrow">›</div>
+          <div class="node store"><div class="ic">3</div><h3>DuckDB store</h3><p>contract × expiry × day · raw JSON cache</p></div>
+          <div class="arrow">›</div>
+          <div class="node"><div class="ic">4</div><h3>Analytics</h3><p>₹/g fine gold · GOLDTEN curve · roll-down split · premiums · lifecycle</p></div>
+          <div class="arrow">›</div>
+          <div class="node"><div class="ic">5</div><h3>Walk-forward backtest</h3><p>no look-ahead · whole-lot hedges · full costs · 6-month holdout</p></div>
+          <div class="arrow">›</div>
+          <div class="node store" id="results"><div class="ic">6</div><h3>results.json</h3><p>verdict, statistics, series, trades</p></div>
+        </div>
+        <div class="facts">
+          <div class="fact"><b>Cost model:</b> exchange + SEBI fees, stamp duty, CTT, GST, brokerage, slippage → <b>13&nbsp;bps</b> break-even</div>
+          <div class="fact"><b>Validation:</b> 9-point grid on development only · bootstrap + deflated Sharpe · <b>17&nbsp;tests</b></div>
+        </div>
+      </section>
+
+      <section class="lane live">
+        <span class="lane-tag">Live feed</span><span class="lane-note">every 15 s during MCX hours</span>
+        <div class="row">
+          <div class="node"><div class="ic">L1</div><h3>MCX quotes</h3><p>last price + 5-level order book for 5 contract legs</p></div>
+          <div class="arrow">›</div>
+          <div class="node"><div class="ic">L2</div><h3>Live poller</h3><p>Playwright + Edge · <code>start_live.bat</code></p></div>
+          <div class="arrow">›</div>
+          <div class="node"><div class="ic">L3</div><h3>Snapshot &amp; flags</h3><p>executable (bid/ask) premiums · z&#8209;score + cost-hurdle flags</p></div>
+          <div class="arrow">›</div>
+          <div class="node store" id="snap"><div class="ic">L4</div><h3>Snapshot store</h3><p>Upstash (optional, real-time) · <code>last_session.json</code> replay, pushed hourly</p></div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="serve" id="serve">
+      <span class="lane-tag">Serving · Vercel</span>
+      <h4>FastAPI (serverless)</h4>
+      <div class="ep">/api/summary</div>
+      <div class="ep">/api/signals</div>
+      <div class="ep">/api/backtest</div>
+      <div class="ep">/api/contracts</div>
+      <div class="ep">/api/series</div>
+      <div class="ep">/api/live</div>
+      <h4>Static pages (CDN)</h4>
+      <div class="page"><div>Dashboard<span>research</span></div><div>/live<span>monitor</span></div></div>
+      <div class="site"><b>aura.lightninglogics.me</b><span>public · HTTPS · redeploys on every push</span></div>
+    </aside>
+  </div>
+  <svg id="wires"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#B8862B"/></marker></defs></svg>
+</div>
+<script>
+  // Connect each store to the serving column with a smooth wire.
+  const c = document.getElementById('canvas').getBoundingClientRect();
+  const serve = document.getElementById('serve').getBoundingClientRect();
+  const svg = document.getElementById('wires');
+  for (const id of ['results', 'snap']) {
+    const r = document.getElementById(id).getBoundingClientRect();
+    const x1 = r.right - c.left, y1 = r.top + r.height / 2 - c.top;
+    const x2 = serve.left - c.left - 4, y2 = Math.min(Math.max(y1, serve.top - c.top + 80), serve.bottom - c.top - 80);
+    const mx = (x1 + x2) / 2;
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+    p.setAttribute('fill', 'none'); p.setAttribute('stroke', '#B8862B'); p.setAttribute('stroke-width', '3');
+    p.setAttribute('marker-end', 'url(#ah)');
+    svg.appendChild(p);
+  }
+</script>
+</body>
+</html>

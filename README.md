@@ -108,24 +108,7 @@ last real session**, labelled as a replay, never stale or invented numbers.
 
 ## 6. Architecture
 
-```mermaid
-flowchart TD
-  subgraph Research [Research pipeline - daily]
-    A[MCX bhavcopy - 716 sessions] --> B[Ingest and validate]
-    B --> C[Normalise to Rs per gram of fine gold]
-    C --> D[Curve, carry and roll-down]
-    D --> E[Premiums and z-scores]
-    E --> F[Walk-forward backtest with full costs]
-  end
-  subgraph Live [Live feed - every 15 s]
-    L[MCX quotes with order book] --> M[Live poller]
-  end
-  F --> G[results.json]
-  M --> N[Live snapshot and session archive]
-  G --> S[FastAPI on Vercel]
-  N --> S
-  S --> U[Dashboard and live monitor]
-```
+![AuRA architecture: research pipeline, live feed and Vercel serving](docs/architecture.png)
 
 **Stack:** Python 3.12 · Playwright (Edge) · DuckDB · pandas / NumPy · FastAPI · Plotly · Vercel
 
