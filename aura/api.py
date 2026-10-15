@@ -4,6 +4,9 @@ Usage:  uvicorn aura.api:app --port 8000   then open http://localhost:8000
 Serves the results written by `python -m aura.report`.
 """
 import json
+import os
+import time
+import urllib.request
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -12,6 +15,8 @@ from fastapi.responses import FileResponse
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "data" / "results.json"
 DASHBOARD = ROOT / "public" / "index.html"  # on Vercel the CDN serves this file directly
+LIVE = ROOT / "data" / "live.json"          # written by `python -m aura.live` (local mode)
+TICKS = ROOT / "data" / "live_ticks.json"
 
 app = FastAPI(title="AuRA", description="Relative-value analytics for MCX gold futures")
 
@@ -51,6 +56,40 @@ def series() -> dict:
     return _results()["series"]
 
 
+def _upstash(cmds: list[list[str]]) -> list:
+    url = os.environ.get("KV_REST_API_URL")
+    token = os.environ.get("KV_REST_API_READ_ONLY_TOKEN") or os.environ.get("KV_REST_API_TOKEN")
+    req = urllib.request.Request(url.rstrip("/") + "/pipeline", data=json.dumps(cmds).encode(), method="POST",
+                                 headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=5) as r:
+        return [x.get("result") for x in json.loads(r.read())]
+
+
+@app.get("/api/live")
+def live() -> dict:
+    """Latest real-time snapshot from the poller plus today's ticks; status "offline" if none."""
+    if os.environ.get("KV_REST_API_URL"):
+        snap, ticks = _upstash([["GET", "aura:live"], ["LRANGE", "aura:ticks", "0", "-1"]])
+        snap = json.loads(snap) if snap else None
+        ticks = [json.loads(t) for t in ticks or []]
+        source = "upstash"
+    else:
+        snap = json.loads(LIVE.read_text(encoding="utf-8")) if LIVE.exists() else None
+        ticks = json.loads(TICKS.read_text(encoding="utf-8")) if TICKS.exists() else []
+        source = "local"
+    if snap is None:
+        return {"status": "offline", "source": source, "ticks": ticks}
+    age = time.time() - snap["published"]
+    status = "live" if age < 3 * snap["poll_s"] else "delayed" if age < 600 else "offline"
+    return {"status": status if snap["market_open"] else "closed", "age_s": age, "source": source,
+            "snapshot": snap, "ticks": ticks}
+
+
 @app.get("/")
 def dashboard() -> FileResponse:
     return FileResponse(DASHBOARD)
+
+
+@app.get("/live")
+def live_page() -> FileResponse:
+    return FileResponse(ROOT / "public" / "live.html")

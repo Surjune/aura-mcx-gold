@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AuRA Live Monitor</title>
+<link rel="icon" href="data:,">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.34.0/plotly.min.js"></script>
+<style>
+  :root { --navy:#1E3A5F; --gold:#B8862B; --tint:#F7F0E1; --ink:#1D1D1F; --muted:#5B6573; --line:#C9D3E0; --bg:#F4F6F9; --card:#fff;
+          --green:#1F7A3A; --greenbg:#E3F1E6; --amber:#9A6A00; --amberbg:#FDF3DC; --red:#A4343A; --redbg:#F8E3E4; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Calibri, "Segoe UI", Arial, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--navy); color:#fff; padding:12px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  header h1 { margin:0; font-size:22px; } header h1 b { color:#F2D58A; }
+  header a { color:#C9D3E0; font-size:14px; text-decoration:none; } header a:hover { color:#fff; }
+  .status { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:14px; font-weight:700; font-size:13px; letter-spacing:.04em; }
+  .dot { width:9px; height:9px; border-radius:50%; background:currentColor; }
+  .live { background:var(--greenbg); color:var(--green); } .live .dot { animation:pulse 1.4s infinite; }
+  .delayed, .closed { background:var(--amberbg); color:var(--amber); } .offline { background:var(--redbg); color:var(--red); }
+  @keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(31,122,58,.6); } 70% { box-shadow:0 0 0 8px rgba(31,122,58,0); } 100% { box-shadow:0 0 0 0 rgba(31,122,58,0); } }
+  .meta { color:#C9D3E0; font-size:13px; }
+  main { padding:18px 24px; display:grid; gap:16px; grid-template-columns:repeat(12, 1fr); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .card h2 { margin:0 0 8px; font-size:17px; color:var(--navy); }
+  .note { margin:6px 0 0; color:var(--muted); font-size:13px; }
+  .w4 { grid-column:span 4; } .w12 { grid-column:span 12; } .w8 { grid-column:span 8; }
+  @media (max-width: 900px) { .w4, .w8 { grid-column:span 12; } main { padding:12px; } }
+  .pair .big { font-size:36px; font-weight:700; color:var(--navy); font-variant-numeric:tabular-nums; }
+  .pair .row { display:flex; justify-content:space-between; font-size:14px; padding:3px 0; border-bottom:1px solid #EDF0F4; }
+  .pair .row span:last-child { font-variant-numeric:tabular-nums; font-weight:600; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .p-normal { background:#EEF2F7; color:var(--muted); } .p-watch { background:var(--amberbg); color:var(--amber); } .p-flagged { background:var(--greenbg); color:var(--green); }
+  .why { font-size:13px; color:var(--muted); margin-top:8px; min-height:34px; }
+  .zbar { position:relative; height:8px; background:#EDF0F4; border-radius:4px; margin:10px 0 2px; }
+  .zbar .mark { position:absolute; top:-3px; width:3px; height:14px; background:var(--navy); border-radius:2px; transition:left .6s; }
+  .zbar .band { position:absolute; top:0; height:8px; background:#DCE6F0; border-radius:4px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { text-align:left; color:var(--muted); font-weight:600; border-bottom:1px solid var(--line); padding:6px 8px; }
+  td { padding:6px 8px; border-bottom:1px solid #EDF0F4; font-variant-numeric:tabular-nums; }
+  td.num, th.num { text-align:right; }
+  .up { color:var(--green); } .down { color:var(--red); }
+  .flash { animation:flash .9s; } @keyframes flash { from { background:#FFF4D6; } to { background:transparent; } }
+  #banner { display:none; }
+  .chart { width:100%; height:320px; }
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <h1><b>AuRA</b> Live Monitor</h1>
+    <span id="status" class="status offline"><span class="dot"></span><span id="status-text">CONNECTING</span></span>
+    <span class="meta" id="asof"></span>
+  </div>
+  <a href="/">← Research dashboard</a>
+</header>
+<main>
+  <section class="card w12" id="banner"></section>
+  <div class="w12" style="display:grid;gap:16px;grid-template-columns:repeat(12,1fr)" id="pairs"></div>
+
+  <section class="card w8"><h2>Live premiums today (bps)</h2><div id="chart" class="chart"></div>
+    <p class="note">Solid: last-trade premium. Dotted: executable premium when selling the small lot at the bid and buying GOLDTEN at the ask.</p></section>
+  <section class="card w4"><h2>Market context</h2><div id="context"></div></section>
+
+  <section class="card w12"><h2>Contracts tracked</h2><div id="contracts"></div>
+    <p class="note">Source: MCX quotes with 5-level order book, polled every 15 s by the AuRA poller. ₹/g fine = price ÷ quote grams ÷ purity.</p></section>
+</main>
+<script>
+const C = { navy:'#1E3A5F', gold:'#B8862B', teal:'#2A7F8E', rose:'#A4505E', muted:'#5B6573' };
+const f = (x, d = 1) => x == null ? '–' : Number(x).toLocaleString('en-IN', { minimumFractionDigits:d, maximumFractionDigits:d });
+const sgn = (x, d = 1) => x == null ? '–' : (x > 0 ? '+' : '') + f(x, d);
+const LABEL = { live:'LIVE', delayed:'DELAYED', closed:'MARKET CLOSED', offline:'OFFLINE' };
+let lastAsOf = null, chartReady = false;
+
+function pairCard(p, i) {
+  const span = 4, z = Math.max(-4, Math.min(4, p.z));
+  return `<section class="card pair w4" style="grid-column:span ${span}">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2>${p.pair}</h2><span class="pill p-${p.status}">${p.status}</span></div>
+    <div class="big" id="big${i}">${sgn(p.premium_bps)} <span style="font-size:18px;color:${C.muted}">bps</span></div>
+    <div class="zbar"><div class="band" style="left:${(4 - 2) / 8 * 100}%;width:${4 / 8 * 100}%"></div><div class="mark" style="left:calc(${(z + 4) / 8 * 100}% - 1px)"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:${C.muted}"><span>z −4</span><span>0</span><span>+4</span></div>
+    <div class="row"><span>${p.window}-session mean</span><span>${sgn(p.mean_bps)} bps</span></div>
+    <div class="row"><span>z-score</span><span>${sgn(p.z, 2)}</span></div>
+    <div class="row"><span>Executable (sell / buy small lot)</span><span>${p.exec_sell_bps == null ? 'n/a' : sgn(p.exec_sell_bps) + ' / ' + sgn(p.exec_buy_bps)}</span></div>
+    <div class="why">${p.why}</div></section>`;
+}
+
+function render(d) {
+  const st = d.status, el = document.getElementById('status');
+  el.className = 'status ' + st; document.getElementById('status-text').textContent = LABEL[st] || st.toUpperCase();
+  const banner = document.getElementById('banner');
+  if (!d.snapshot) {
+    banner.style.display = 'block';
+    banner.innerHTML = `<h2>Waiting for the live feed</h2><p class="note">The AuRA poller is not publishing right now (it runs during MCX hours, 09:00–23:30 IST on weekdays). The research dashboard still works.</p>`;
+    return;
+  }
+  const s = d.snapshot;
+  banner.style.display = st === 'live' ? 'none' : 'block';
+  if (st !== 'live') banner.innerHTML = `<h2>${st === 'closed' ? 'Market closed' : 'Feed ' + st}</h2><p class="note">Showing the last snapshot from ${s.polled_ist} IST (${f(d.age_s / 60, 0)} min ago).</p>`;
+  document.getElementById('asof').textContent = `polled ${s.polled_ist} IST · ${f(d.age_s, 0)} s ago · exchange stamp ${s.as_on_ist.slice(11)}`;
+  const fresh = lastAsOf !== s.as_on; lastAsOf = s.as_on;
+  document.getElementById('pairs').innerHTML = s.pairs.map(pairCard).join('');
+  if (fresh) s.pairs.forEach((_, i) => document.getElementById('big' + i)?.classList.add('flash'));
+
+  document.getElementById('contracts').innerHTML = `<table><tr><th>Contract</th><th>Expiry</th><th class="num">LTP ₹</th><th class="num">Bid</th><th class="num">Ask</th>
+    <th class="num">Spread bps</th><th class="num">₹/g fine</th><th class="num">Change</th><th class="num">Volume (lots)</th><th class="num">OI (lots)</th></tr>` +
+    s.contracts.map(c => `<tr><td>${c.symbol}</td><td>${c.expiry}</td><td class="num">${f(c.ltp, 0)}</td><td class="num">${f(c.bid, 0)}</td>
+      <td class="num">${f(c.ask, 0)}</td><td class="num">${f(c.spread_bps, 1)}</td><td class="num">${f(c.fine, 1)}</td>
+      <td class="num ${c.change_pct >= 0 ? 'up' : 'down'}">${sgn(c.change_pct, 2)}%</td><td class="num">${f(c.volume, 0)}</td><td class="num">${f(c.oi, 0)}</td></tr>`).join('') + '</table>';
+
+  const v = Object.entries(s.verdict).map(([k, x]) => `<div class="row" style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #EDF0F4"><span>${k} vs TEN</span><span style="font-weight:600">${x}</span></div>`).join('');
+  document.getElementById('context').innerHTML = `
+    <div class="pair"><div class="row"><span>Implied carry (GOLDTEN curve)</span><span>${f(s.carry_pa, 1)}% p.a.</span></div>
+    <div class="row"><span>Round-trip cost hurdle</span><span>${f(s.hurdle_bps, 1)} bps</span></div>
+    <div class="row"><span>Poll interval</span><span>${s.poll_s} s</span></div>
+    <div class="row"><span>Feed source</span><span>${d.source}</span></div></div>
+    <h2 style="margin-top:14px">Backtest verdict</h2>${v}
+    <p class="note">A live flag needs an unusual z-score and an executable gap above the cost hurdle. The walk-forward found no persistent edge, so flags are informational.</p>`;
+
+  const t = d.ticks || [], x = t.map(k => new Date(k.t * 1000));
+  const traces = [
+    { x, y:t.map(k => k.p0), name:'PETAL', line:{ color:C.gold, width:2 } },
+    { x, y:t.map(k => k.e0), name:'PETAL exec', line:{ color:C.gold, width:1, dash:'dot' } },
+    { x, y:t.map(k => k.p1), name:'GUINEA', line:{ color:C.teal, width:2 } },
+    { x, y:t.map(k => k.e1), name:'GUINEA exec', line:{ color:C.teal, width:1, dash:'dot' } },
+    { x, y:t.map(k => k.p2), name:'GOLDM vs curve', line:{ color:C.navy, width:2 } },
+  ].map(tr => ({ ...tr, type:'scatter', mode:'lines' }));
+  const layout = { margin:{ l:50, r:10, t:6, b:34 }, paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)', uirevision:'keep',
+    font:{ family:'Calibri, Segoe UI, Arial', size:12, color:C.muted }, legend:{ orientation:'h', y:1.14 },
+    yaxis:{ title:'bps', gridcolor:'#E6EAF0' }, xaxis:{ gridcolor:'rgba(0,0,0,0)' } };
+  Plotly.react('chart', traces, layout, { displayModeBar:false, responsive:true });
+}
+
+async function tick() {
+  try {
+    const r = await fetch('/api/live', { cache:'no-store' });
+    render(await r.json());
+  } catch (e) {
+    const el = document.getElementById('status'); el.className = 'status offline';
+    document.getElementById('status-text').textContent = 'OFFLINE';
+  }
+}
+tick(); setInterval(tick, 5000);
+</script>
+</body>
+</html>
