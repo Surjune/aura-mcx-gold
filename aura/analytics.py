@@ -67,7 +67,7 @@ def panel(df: pd.DataFrame) -> pd.DataFrame:
                 m_purity=(m["fine"] / a["fine"] - 1) * 1e4,
                 m_carry=(m["fine"] / fitted - 1) * 1e4 if fitted else np.nan,
             )
-        front = ten.sort_values("expiry").head(2)
+        front = ten[ten["dte"] >= MIN_DTE].sort_values("expiry").head(2)  # skip contracts in delivery
         if len(front) == 2:
             f0, f1 = front.iloc[0], front.iloc[1]
             days = (f1["expiry"] - f0["expiry"]).days
@@ -113,14 +113,17 @@ def lifecycle(df: pd.DataFrame) -> pd.DataFrame:
     """Per contract: first and last traded session, when it became the liquid contract, delivery window."""
     total_oi = df.groupby(["session", "symbol"])["oi_lots"].transform("sum")
     df = df.assign(oi_share=df["oi_lots"] / total_oi.where(total_oi > 0))
-    first_session = df["session"].min()
+    first_session, last_session = df["session"].min(), df["session"].max()
+    sessions = sorted(df["session"].unique())
     recs = []
     for (sym, exp), g in df.groupby(["symbol", "expiry"]):
         g = g.sort_values("session")
         liquid = g[g["oi_share"] >= LIQUID_SHARE]
-        sessions = sorted(df.loc[df["symbol"] == sym, "session"].unique())
-        before_expiry = [s for s in sessions if s <= exp]
-        window_start = before_expiry[-DELIVERY_WINDOW_SESSIONS] if len(before_expiry) >= DELIVERY_WINDOW_SESSIONS else None
+        if exp <= last_session:   # expiry inside the data: count real sessions back from expiry
+            before_expiry = [s for s in sessions if s <= exp]
+            window_start = before_expiry[-DELIVERY_WINDOW_SESSIONS] if len(before_expiry) >= DELIVERY_WINDOW_SESSIONS else None
+        else:                     # future expiry: weekdays back from expiry (exchange holidays not known yet)
+            window_start = np.busday_offset(exp.date(), -(DELIVERY_WINDOW_SESSIONS - 1), roll="backward")
         recs.append({
             "symbol": sym, "expiry": exp.date(),
             "first_traded": g["session"].iloc[0].date(),

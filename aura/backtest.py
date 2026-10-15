@@ -122,6 +122,9 @@ def summarise(res: dict, mask: np.ndarray | None = None, trial_sharpes: list[flo
         "cost_bps_per_trade": np.mean([t["costs"] / t["notional"] * 1e4 for t in tr]) if n else None,
         "net_bps_per_trade": np.mean([t["net"] / t["notional"] * 1e4 for t in tr]) if n else None,
         "avg_hold": np.mean([t["held"] for t in tr]) if n else None,
+        # how much of the net result one trade carries: a high share means the "edge" is one event
+        "best_trade_share": max(t["net"] for t in tr) / sum(t["net"] for t in tr) if n and sum(t["net"] for t in tr) > 0 else None,
+        "net_bps_ex_best": np.mean(sorted([t["net"] / t["notional"] * 1e4 for t in tr])[:-1]) if n > 1 else None,
         "sharpe": stats.sharpe(daily), "max_dd_rs": stats.max_drawdown(daily),
         "corr_gold": corr, "beta_rs_per_1pct_gold": beta,
         "bootstrap_p": stats.bootstrap_pvalue(daily),

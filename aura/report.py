@@ -46,10 +46,21 @@ def half_life(s: pd.Series) -> float | None:
     return -math.log(2) / math.log(1 + b) if -1 < b < 0 else None
 
 
-def signals(pnl: pd.DataFrame, p: Params, hurdle_bps: float) -> list[dict]:
-    """Latest reading per pair, with the reason it is or is not a trade."""
+def verdict(wf: dict) -> dict:
+    """Out-of-sample verdict per pair: an edge needs positive net holdout P&L that is unlikely to be luck."""
+    out = {}
+    for sym, r in wf.items():
+        h = r["holdout"]
+        edge = (h["trades"] or 0) >= 5 and (h["net_bps_per_trade"] or 0) > 0 and (h["bootstrap_p"] or 1) < 0.05
+        out[sym] = "edge survives costs out of sample" if edge else "no persistent edge after costs"
+    return out
+
+
+def signals(pnl: pd.DataFrame, wf: dict, hurdle_bps: float, verdicts: dict) -> list[dict]:
+    """Latest reading per pair, with the reason it is or is not flagged."""
     out = []
     for sym, col in backtest.PREMIUM_COL.items():
+        p = Params(**{k: wf[sym]["chosen"][k] for k in ("window", "z_in", "z_out", "max_hold", "entry_dte", "exit_dte")})
         hist = pnl[col].dropna()
         if len(hist) <= p.window:
             continue
@@ -65,9 +76,11 @@ def signals(pnl: pd.DataFrame, p: Params, hurdle_bps: float) -> list[dict]:
             why = f"only {dte} days to expiry - too close to delivery"
         else:
             why = ("rich" if z > 0 else "cheap") + f" by {abs(gap):.1f} bps vs its {p.window}-session mean"
+        flagged = why.startswith(("rich", "cheap"))
         out.append({"pair": f"{sym} vs GOLDTEN", "session": pnl.index[-1], "expiry": pnl["expiry"].iloc[-1],
                     "premium_bps": now, "mean_bps": w.mean(), "z": z, "gap_bps": gap, "dte": dte,
-                    "action": "trade" if why.startswith(("rich", "cheap")) else "no trade", "why": why})
+                    "action": "flagged" if flagged else "normal", "why": why,
+                    "validated": verdicts[sym]})
     return out
 
 
@@ -78,6 +91,7 @@ def main() -> None:
     life = analytics.lifecycle(df)
 
     wf = {sym: backtest.walk_forward(df, pnl, sym) for sym in backtest.PAIRS}
+    verdicts = verdict(wf)
     c = Costs()
     leg = 14.8e5
     # bps of one leg's notional: both legs bought once and sold once over a round trip
@@ -103,7 +117,8 @@ def main() -> None:
         "hurdle_bps": hurdle,
         "backtest": {sym: {k: v for k, v in r.items() if k != "result"} for sym, r in wf.items()},
         "trades": {sym: r["result"]["trades"] for sym, r in wf.items()},
-        "signals": signals(pnl, Params(**{k: wf["GOLDPETAL"]["chosen"][k] for k in ("window", "z_in")}), hurdle),
+        "verdict": verdicts,
+        "signals": signals(pnl, wf, hurdle, verdicts),
         "series": {
             "session": list(pnl.index),
             "ten_fine": pnl["ten_fine"].tolist(), "petal_fine": pnl["petal_fine"].tolist(),

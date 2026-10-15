@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AuRA Gold Board</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+<link rel="icon" href="data:,">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.34.0/plotly.min.js"></script>
 <style>
   :root { --navy:#1E3A5F; --gold:#B8862B; --tint:#F7F0E1; --ink:#1D1D1F; --muted:#5B6573; --line:#C9D3E0; --bg:#F4F6F9; --card:#fff; }
   * { box-sizing: border-box; }
@@ -34,6 +35,7 @@
 <body>
 <header><h1><b>AuRA</b> Gold Board</h1><span id="meta">loading...</span></header>
 <main>
+  <section class="card w12" id="verdict" style="border-color:#DCC79A;background:#F7F0E1"></section>
   <section class="kpis" id="kpis"></section>
 
   <section class="card w7"><h2>Normalised price, ₹ per gram of fine gold</h2><div id="c-fine" class="chart"></div>
@@ -67,6 +69,9 @@ async function get(path) { const r = await fetch(path); if (!r.ok) throw new Err
   try {
     const [sum, sig, bt, s, life] = await Promise.all(['/api/summary', '/api/signals', '/api/backtest', '/api/series', '/api/contracts'].map(get));
     const d = sum.data, p = sum.premiums;
+    document.getElementById('verdict').innerHTML = `<h2>Out-of-sample verdict</h2>` + Object.entries(sum.verdict)
+      .map(([k, v]) => `<b>${k} vs GOLDTEN:</b> ${v}`).join(' &nbsp;·&nbsp; ') +
+      `<p class="note">Small lots carry a standing premium to GOLDTEN; deviations around it mean-revert but do not pay after costs on the untouched holdout. Flags below are informational.</p>`;
     document.getElementById('meta').textContent = `MCX bhavcopy · ${d.sessions} sessions · ${d.from} → ${d.to}`;
     document.getElementById('kpis').innerHTML = [
       [f(p.GOLDPETAL.median) + ' bps', 'PETAL median premium to GOLDTEN'],
@@ -87,8 +92,8 @@ async function get(path) { const r = await fetch(path); if (!r.ok) throw new Err
 
     document.getElementById('signals').innerHTML = `<table><tr><th>Pair</th><th class="num">Premium</th><th class="num">z</th><th>Action</th></tr>` +
       sig.map(r => `<tr><td>${r.pair}</td><td class="num">${f(r.premium_bps)} bps</td><td class="num">${f(r.z, 2)}</td>
-        <td><span class="pill ${r.action === 'trade' ? 'trade' : 'none'}">${r.action}</span></td></tr>
-        <tr><td colspan="4" style="color:${C.muted};font-size:13px">${r.why} · expiry ${r.expiry} (${r.dte} days)</td></tr>`).join('') + '</table>';
+        <td><span class="pill ${r.action === 'flagged' ? 'trade' : 'none'}">${r.action}</span></td></tr>
+        <tr><td colspan="4" style="color:${C.muted};font-size:13px">${r.why} · expiry ${r.expiry} (${r.dte} days) · backtest: ${r.validated}</td></tr>`).join('') + '</table>';
 
     const rows = [];
     for (const [sym, r] of Object.entries(bt.summary)) for (const part of ['development', 'holdout']) {
@@ -96,13 +101,14 @@ async function get(path) { const r = await fetch(path); if (!r.ok) throw new Err
       rows.push(`<tr><td>${sym} vs TEN</td><td>${part}<br><span style="color:${C.muted};font-size:12px">${m.from} → ${m.to}</span></td>
         <td class="num">${m.trades}</td><td class="num">${m.win_rate == null ? '–' : f(m.win_rate * 100, 0) + '%'}</td>
         <td class="num">${f(m.gross_bps_per_trade)}</td><td class="num">${f(m.cost_bps_per_trade)}</td><td class="num">${f(m.net_bps_per_trade)}</td>
+        <td class="num">${f(m.net_bps_ex_best)}</td>
         <td class="num">${f(m.sharpe, 2)}</td><td class="num">${f(m.corr_gold, 2)}</td><td class="num">${f(m.bootstrap_p, 2)}</td></tr>`);
     }
     document.getElementById('bt').innerHTML = `<table><tr><th>Pair</th><th>Period</th><th class="num">Trades</th><th class="num">Win</th>
-      <th class="num">Gross bps</th><th class="num">Cost bps</th><th class="num">Net bps</th><th class="num">Sharpe</th>
+      <th class="num">Gross bps</th><th class="num">Cost bps</th><th class="num">Net bps</th><th class="num">Net ex-best</th><th class="num">Sharpe</th>
       <th class="num">Corr gold</th><th class="num">Boot p</th></tr>${rows.join('')}</table>`;
 
-    const recent = life.filter(r => r.last_traded >= d.to.slice(0, 7)).slice(-24);
+    const recent = life.filter(r => r.expiry >= d.to);
     document.getElementById('life').innerHTML = `<table><tr><th>Contract</th><th>Expiry</th><th>First traded</th><th>Became liquid</th>
       <th class="num">Sessions to liquid</th><th class="num">Peak OI (lots)</th><th>Delivery window from</th></tr>` +
       recent.map(r => `<tr><td>${r.symbol}</td><td>${r.expiry}</td><td>${r.first_traded}${r.listed_before_data ? ' *' : ''}</td>

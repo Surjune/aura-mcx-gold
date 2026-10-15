@@ -24,7 +24,7 @@ def _results() -> dict:
 @app.get("/api/summary")
 def summary() -> dict:
     r = _results()
-    return {k: r[k] for k in ("data", "premiums", "carry_pa", "roll_split", "hurdle_bps")}
+    return {k: r[k] for k in ("data", "premiums", "carry_pa", "roll_split", "hurdle_bps", "verdict")}
 
 
 @app.get("/api/contracts")
