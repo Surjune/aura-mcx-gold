@@ -112,17 +112,17 @@ last real session**, labelled as a replay, never stale or invented numbers.
 
 ```mermaid
 flowchart LR
-  A["MCX bhavcopy<br/>716 sessions"] --> B["Ingest & validate<br/>dates · holidays · expiry"]
-  B --> C["Normalise<br/>₹ per g fine gold"]
-  C --> D["Curve & carry<br/>roll-down split"]
-  D --> E["Premiums & z-scores"]
-  E --> F["Walk-forward backtest<br/>full costs · holdout"]
-  F --> G[("results.json")]
-  L["MCX live quotes<br/>order book · 15 s"] --> M["Live poller"]
-  M --> N[("live snapshot /<br/>session archive")]
-  G --> API["FastAPI on Vercel"]
-  N --> API
-  API --> UI["Dashboard and /live"]
+  A[MCX bhavcopy - 716 sessions] --> B[Ingest and validate]
+  B --> C[Normalise to Rs per gram of fine gold]
+  C --> D[Curve, carry and roll-down]
+  D --> E[Premiums and z-scores]
+  E --> F[Walk-forward backtest with full costs]
+  F --> G[results.json]
+  L[MCX live quotes every 15 s] --> M[Live poller]
+  M --> N[Live snapshot and session archive]
+  G --> S[FastAPI on Vercel]
+  N --> S
+  S --> U[Dashboard and live monitor]
 ```
 
 **Stack:** Python 3.12 · Playwright (Edge) · DuckDB · pandas / NumPy · FastAPI · Plotly · Vercel
