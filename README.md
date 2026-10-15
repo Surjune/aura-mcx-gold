@@ -2,7 +2,8 @@
 
 **Team Lightning Logics · Hack in Hills '26 · Track 03: Commodity Derivatives Intelligence**
 
-**Live dashboard: https://aura.lightninglogics.me** · API under `/api/*` (see below)
+**Live dashboard: https://aura.lightninglogics.me** · live monitor at `/live` · API under `/api/*` (see below)
+· **Demo video: https://youtu.be/29peqQnTcX8**
 
 MCX lists four gold futures on the same metal: GOLDM, GOLDTEN, GOLDGUINEA and GOLDPETAL.
 Once lot size, quote unit, purity and delivery date are accounted for, their prices should
