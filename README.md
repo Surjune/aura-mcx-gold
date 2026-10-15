@@ -8,6 +8,38 @@ agree. AuRA measures where they don't, separates mechanical carry from genuine d
 and tests on unseen data whether any gap survives real trading costs. Proving that no edge
 survives costs is an accepted outcome for this track, and AuRA reports it as plainly as an edge.
 
+## Results (MCX bhavcopy, 01 Jan 2024 – 14 Oct 2026)
+
+716 sessions and 11,789 contract-days ingested; GOLDTEN pairs cover 395 sessions from its
+April 2025 listing.
+
+**Verdict: no persistent edge survives costs out of sample.**
+
+| PETAL vs GOLDTEN, net of all costs | Development (Apr 2025 – Apr 2026) | Holdout (Apr – Oct 2026, untouched) |
+|---|---|---|
+| Trades | 14 | 7 |
+| Net bps per trade | +22.1 | −1.4 |
+| Net bps per trade, excluding the best trade | +7.6 | −3.7 |
+| Sharpe (annualised) | 0.92 | −0.45 |
+| Block-bootstrap p-value | 0.12 | 0.76 |
+| Deflated Sharpe probability (9 trials) | 0.74 | 0.38 |
+
+78% of the development profit came from a single exit at the 30 January 2026 close, a
+gold sell-off day on which contracts closed at inconsistent prices that could not have been
+traded. GUINEA vs GOLDTEN made 4 development trades and none in the holdout.
+
+What the data does show:
+
+- **Small lots carry a standing premium.** GOLDPETAL's median premium to GOLDTEN for the same
+  expiry is +69 bps and it never fell below +11 bps; GOLDGUINEA's median is +51 bps. It is
+  structural, not a mispricing that converges.
+- **The carry trap is real.** GOLDM looks 24.6 bps cheap against GOLDTEN on a naive per-gram
+  comparison; after purity it is +15.5 bps and after carry +6.7 bps (medians, 395 sessions).
+- **Carry and roll-down.** The GOLDTEN front curve implies a median 9.7% a year carry;
+  mechanical roll-down accounts for about 4% of a typical day's move, the rest is genuine shift.
+- **Lifecycle.** A new contract takes a median 58 sessions (PETAL, GUINEA), 68 (GOLDTEN) or
+  37 (GOLDM) from first trade to carrying half its symbol's open interest.
+
 ## What it does
 
 | Track 03 direction | Where |
