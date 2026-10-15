@@ -51,6 +51,42 @@ def test_published_tick_carries_last_trade_and_executable_premiums(tmp_path, mon
     assert tick == {"t": 100, "p0": 40.0, "e0": 39.0}
 
 
+def test_new_trading_day_starts_a_fresh_chart(tmp_path, monkeypatch):
+    from aura import live
+    monkeypatch.setattr(live, "LIVE", tmp_path / "live.json")
+    monkeypatch.setattr(live, "TICKS", tmp_path / "ticks.json")
+    monkeypatch.delenv("KV_REST_API_URL", raising=False)
+    pair = classify("x", 40.0, 39.0, 41.0, HIST, hurdle=13.0, tradeable=True)
+    day1, day2 = 1792040000, 1792040000 + 86400
+    live.publish({"published": day1, "pairs": [pair]})
+    live.publish({"published": day2, "pairs": [pair]})
+    assert [t["t"] for t in json.loads((tmp_path / "ticks.json").read_text())] == [day2]
+
+
+def test_api_replays_committed_session_when_no_poller_runs(tmp_path, monkeypatch):
+    import time
+    from aura import api
+    monkeypatch.setattr(api, "LIVE", tmp_path / "missing.json")
+    monkeypatch.setattr(api, "SESSION", tmp_path / "session.json")
+    for k in ("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"):
+        monkeypatch.delenv(k, raising=False)
+    snap = {"published": time.time() - 3 * 3600, "poll_s": 15, "market_open": True, "pairs": []}
+    (tmp_path / "session.json").write_text(json.dumps({"snapshot": snap, "ticks": [{"t": 1}]}))
+    out = api.live()
+    assert out["status"] == "replay" and out["source"] == "session archive" and out["ticks"] == [{"t": 1}]
+
+
+def test_api_reports_live_for_a_fresh_snapshot(tmp_path, monkeypatch):
+    import time
+    from aura import api
+    monkeypatch.setattr(api, "LIVE", tmp_path / "live.json")
+    monkeypatch.setattr(api, "TICKS", tmp_path / "ticks.json")
+    for k in ("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"):
+        monkeypatch.delenv(k, raising=False)
+    (tmp_path / "live.json").write_text(json.dumps({"published": time.time(), "poll_s": 15, "market_open": True}))
+    assert api.live()["status"] == "live"
+
+
 def test_different_expiry_pair_is_never_flagged():
     p = classify("GOLDM", 60.0, None, None, HIST, hurdle=13.0, tradeable=False)
     assert p["status"] == "watch"

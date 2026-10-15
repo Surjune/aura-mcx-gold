@@ -6,6 +6,7 @@ __pycache__/
 .mypy_cache/
 data/*
 !data/results.json
+!data/last_session.json
 *.duckdb
 *.duckdb.wal
 .env

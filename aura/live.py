@@ -7,10 +7,15 @@ compares them with the historical distribution from data/results.json, and publi
   - Upstash Redis keys aura:live and aura:ticks when KV_REST_API_URL and KV_REST_API_TOKEN
     are set in the environment or in .env (the deployed API reads these)
 
+Every hour, at market close and on Ctrl+C it also commits data/last_session.json (the day's
+snapshots) and pushes, so the deployed site always has the latest real session to replay
+when no poller is running.
+
 Usage:  python -m aura.live            (Ctrl+C to stop)
 """
 import json
 import os
+import subprocess
 import time
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
@@ -27,14 +32,15 @@ ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "data" / "results.json"
 LIVE = ROOT / "data" / "live.json"
 TICKS = ROOT / "data" / "live_ticks.json"
+SESSION_FILE = ROOT / "data" / "last_session.json"
 QUOTE_PAGE = "https://www.mcxindia.com/en/market-data/get-quote/FUTCOM/GOLDTEN/{expiry}"
 QUOTE_API = "/GetQuote?Commodity={symbol}&Expiry={expiry}&culture=en"
 IST = timezone(timedelta(hours=5, minutes=30))
 POLL_S = 15                 # seconds between polls while the market is open
 CLOSED_POLL_S = 300         # seconds between checks while it is closed
 SESSION = ((9, 0), (23, 55))  # MCX trading day in IST (evening session ends 23:30 or 23:55 by season)
-MAX_TICKS = 2400            # ~10 hours of 15-second ticks
-TICK_TTL_S = 180            # the live key expires if the poller stops, so viewers see "offline"
+MAX_TICKS = 4000            # a full 09:00-23:55 session of 15-second ticks
+SESSION_PUSH_S = 3600       # publish the session archive to the repo once an hour
 REFRESH_PAGE_S = 1800       # reopen the MCX page every 30 minutes to keep the session fresh
 
 FETCH_JS = """async (u) => {
@@ -152,18 +158,40 @@ def publish(snap: dict) -> None:
     tick = {"t": round(snap["published"]), **{f"p{i}": round(p["premium_bps"], 2) for i, p in enumerate(snap["pairs"])},
             **{f"e{i}": (round(p["exec_sell_bps"], 2) if p["exec_sell_bps"] is not None else None) for i, p in enumerate(snap["pairs"])}}
     ticks = json.loads(TICKS.read_text(encoding="utf-8")) if TICKS.exists() else []
+    day = lambda ts: datetime.fromtimestamp(ts, IST).date()
+    new_day = bool(ticks) and day(ticks[-1]["t"]) != day(tick["t"])
+    if new_day:  # one chart per trading day
+        ticks = []
     if not ticks or ticks[-1]["t"] != tick["t"]:
         ticks = (ticks + [tick])[-MAX_TICKS:]
     LIVE.write_text(json.dumps(snap), encoding="utf-8")
     TICKS.write_text(json.dumps(ticks), encoding="utf-8")
     url, token = upstash()
     if url and token:
-        cmds = [["SET", "aura:live", json.dumps(snap), "EX", str(TICK_TTL_S)], ["RPUSH", "aura:ticks", json.dumps(tick)],
-                ["LTRIM", "aura:ticks", str(-MAX_TICKS), "-1"]]
+        # No expiry: when the poller stops, viewers still see the last real snapshot, marked by its age.
+        cmds = ([["DEL", "aura:ticks"]] if new_day else []) + [
+            ["SET", "aura:live", json.dumps(snap)], ["RPUSH", "aura:ticks", json.dumps(tick)],
+            ["LTRIM", "aura:ticks", str(-MAX_TICKS), "-1"]]
         req = urllib.request.Request(url.rstrip("/") + "/pipeline", data=json.dumps(cmds).encode(), method="POST",
                                      headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=10) as r:
             r.read()
+
+
+def save_session(reason: str) -> None:
+    """Commit and push today's snapshots so the deployed site can replay the last real session."""
+    if not (LIVE.exists() and TICKS.exists()):
+        return
+    SESSION_FILE.write_text(json.dumps({"snapshot": json.loads(LIVE.read_text(encoding="utf-8")),
+                                        "ticks": json.loads(TICKS.read_text(encoding="utf-8"))}), encoding="utf-8")
+    stamp = datetime.now(IST).strftime("%Y-%m-%d %H:%M")
+    git = lambda *a: subprocess.run(["git", *a], cwd=ROOT, capture_output=True, text=True, timeout=120)
+    git("add", str(SESSION_FILE.relative_to(ROOT)))
+    if git("diff", "--cached", "--quiet").returncode == 0:
+        return
+    git("commit", "-m", f"Live session snapshot {stamp} IST ({reason})")
+    pushed = git("push")
+    print(stamp, f"session archive pushed ({reason})" if pushed.returncode == 0 else f"push failed: {pushed.stderr.strip()}", flush=True)
 
 
 def run() -> None:
@@ -175,38 +203,53 @@ def run() -> None:
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="msedge", headless=True, args=["--disable-blink-features=AutomationControlled"])
         page = browser.new_context(user_agent=USER_AGENT, locale="en-IN").new_page()
-        opened, contracts = 0.0, None
-        while True:
-            now = datetime.now(IST)
-            if contracts is None or contracts["ten"] - now.date() < timedelta(days=MIN_DTE):
-                contracts = pick_contracts(now.date())
-                print("tracking", {k: v.isoformat() for k, v in contracts.items()}, flush=True)
-            if not market_open(now):
-                print(now.strftime("%H:%M:%S"), "market closed; next check in", CLOSED_POLL_S, "s", flush=True)
-                time.sleep(CLOSED_POLL_S)
-                continue
-            try:
-                if time.time() - opened > REFRESH_PAGE_S:
-                    page.goto(QUOTE_PAGE.format(expiry=contracts["ten"].strftime("%d%b%Y").upper()),
-                              wait_until="domcontentloaded", timeout=60_000)
-                    opened = time.time()
-                legs = {"ten": ("GOLDTEN", contracts["ten"]), "ten_next": ("GOLDTEN", contracts["ten_next"]),
-                        "petal": ("GOLDPETAL", contracts["ten"]), "guinea": ("GOLDGUINEA", contracts["ten"]),
-                        "m": ("GOLDM", contracts["m"])}
-                quotes = {}
-                for key, (sym, exp) in legs.items():
-                    res = page.evaluate(FETCH_JS, QUOTE_API.format(symbol=sym, expiry=exp.strftime("%d%b%Y").upper()))
-                    if res["status"] != 200:
-                        raise RuntimeError(f"HTTP {res['status']} for {sym} {exp}")
-                    quotes[key] = parse_quote(sym, exp, res["body"])
-                snap = snapshot(quotes, hist, contracts)
-                publish(snap)
-                line = "  ".join(f"{x['pair'].split()[0]} {x['premium_bps']:+.1f}bps z{x['z']:+.1f} {x['status']}" for x in snap["pairs"])
-                print(snap["polled_ist"], "published", remote, "|", line, flush=True)
-            except Exception as exc:  # network blip or session expiry: reopen the page next cycle
-                print(datetime.now(IST).strftime("%H:%M:%S"), "poll failed:", exc, flush=True)
-                opened = 0.0
-            time.sleep(POLL_S)
+        try:
+            loop(page, hist, remote)
+        except KeyboardInterrupt:
+            save_session("poller stopped")
+
+
+def loop(page, hist: dict, remote: str) -> None:
+    """Poll while MCX is open; archive the session hourly and at the close."""
+    opened, contracts, was_open, archived = 0.0, None, False, time.time()
+    while True:
+        now = datetime.now(IST)
+        if contracts is None or contracts["ten"] - now.date() < timedelta(days=MIN_DTE):
+            contracts = pick_contracts(now.date())
+            print("tracking", {k: v.isoformat() for k, v in contracts.items()}, flush=True)
+        if not market_open(now):
+            if was_open:
+                save_session("market close")
+                was_open = False
+            print(now.strftime("%H:%M:%S"), "market closed; next check in", CLOSED_POLL_S, "s", flush=True)
+            time.sleep(CLOSED_POLL_S)
+            continue
+        try:
+            if time.time() - opened > REFRESH_PAGE_S:
+                page.goto(QUOTE_PAGE.format(expiry=contracts["ten"].strftime("%d%b%Y").upper()),
+                          wait_until="domcontentloaded", timeout=60_000)
+                opened = time.time()
+            legs = {"ten": ("GOLDTEN", contracts["ten"]), "ten_next": ("GOLDTEN", contracts["ten_next"]),
+                    "petal": ("GOLDPETAL", contracts["ten"]), "guinea": ("GOLDGUINEA", contracts["ten"]),
+                    "m": ("GOLDM", contracts["m"])}
+            quotes = {}
+            for key, (sym, exp) in legs.items():
+                res = page.evaluate(FETCH_JS, QUOTE_API.format(symbol=sym, expiry=exp.strftime("%d%b%Y").upper()))
+                if res["status"] != 200:
+                    raise RuntimeError(f"HTTP {res['status']} for {sym} {exp}")
+                quotes[key] = parse_quote(sym, exp, res["body"])
+            snap = snapshot(quotes, hist, contracts)
+            publish(snap)
+            line = "  ".join(f"{x['pair'].split()[0]} {x['premium_bps']:+.1f}bps z{x['z']:+.1f} {x['status']}" for x in snap["pairs"])
+            print(snap["polled_ist"], "published", remote, "|", line, flush=True)
+            was_open = True
+            if time.time() - archived > SESSION_PUSH_S:
+                save_session("hourly")
+                archived = time.time()
+        except Exception as exc:  # network blip or session expiry: reopen the page next cycle
+            print(datetime.now(IST).strftime("%H:%M:%S"), "poll failed:", exc, flush=True)
+            opened = 0.0
+        time.sleep(POLL_S)
 
 
 if __name__ == "__main__":

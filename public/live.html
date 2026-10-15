@@ -17,7 +17,7 @@
   .status { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:14px; font-weight:700; font-size:13px; letter-spacing:.04em; }
   .dot { width:9px; height:9px; border-radius:50%; background:currentColor; }
   .live { background:var(--greenbg); color:var(--green); } .live .dot { animation:pulse 1.4s infinite; }
-  .delayed, .closed { background:var(--amberbg); color:var(--amber); } .offline { background:var(--redbg); color:var(--red); }
+  .delayed, .closed, .replay { background:var(--amberbg); color:var(--amber); } .offline { background:var(--redbg); color:var(--red); }
   @keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(31,122,58,.6); } 70% { box-shadow:0 0 0 8px rgba(31,122,58,0); } 100% { box-shadow:0 0 0 0 rgba(31,122,58,0); } }
   .meta { color:#C9D3E0; font-size:13px; }
   main { padding:18px 24px; display:grid; gap:16px; grid-template-columns:repeat(12, 1fr); }
@@ -58,7 +58,7 @@
   <section class="card w12" id="banner"></section>
   <div class="w12" style="display:grid;gap:16px;grid-template-columns:repeat(12,1fr)" id="pairs"></div>
 
-  <section class="card w8"><h2>Live premiums today (bps)</h2><div id="chart" class="chart"></div>
+  <section class="card w8"><h2>Premiums through the session (bps)</h2><div id="chart" class="chart"></div>
     <p class="note">Solid: last-trade premium. Dotted: executable premium when selling the small lot at the bid and buying GOLDTEN at the ask.</p></section>
   <section class="card w4"><h2>Market context</h2><div id="context"></div></section>
 
@@ -69,7 +69,7 @@
 const C = { navy:'#1E3A5F', gold:'#B8862B', teal:'#2A7F8E', rose:'#A4505E', muted:'#5B6573' };
 const f = (x, d = 1) => x == null ? '–' : Number(x).toLocaleString('en-IN', { minimumFractionDigits:d, maximumFractionDigits:d });
 const sgn = (x, d = 1) => x == null ? '–' : (x > 0 ? '+' : '') + f(x, d);
-const LABEL = { live:'LIVE', delayed:'DELAYED', closed:'MARKET CLOSED', offline:'OFFLINE' };
+const LABEL = { live:'LIVE', delayed:'DELAYED', closed:'MARKET CLOSED', replay:'REPLAY · LAST SESSION', offline:'OFFLINE' };
 let lastAsOf = null, chartReady = false;
 
 function pairCard(p, i) {
@@ -96,7 +96,9 @@ function render(d) {
   }
   const s = d.snapshot;
   banner.style.display = st === 'live' ? 'none' : 'block';
-  if (st !== 'live') banner.innerHTML = `<h2>${st === 'closed' ? 'Market closed' : 'Feed ' + st}</h2><p class="note">Showing the last snapshot from ${s.polled_ist} IST (${f(d.age_s / 60, 0)} min ago).</p>`;
+  if (st !== 'live') banner.innerHTML = st === 'replay'
+    ? `<h2>Replay of the last real session: ${s.polled_ist.slice(0, 10)}</h2><p class="note">Real MCX quotes captured by the AuRA poller, last update ${s.polled_ist} IST. The live feed runs while the team's poller is on during MCX hours (09:00–23:30 IST, weekdays); a production deployment would use a licensed broker feed.</p>`
+    : `<h2>${st === 'closed' ? 'Market closed' : 'Feed delayed'}</h2><p class="note">Showing the last snapshot from ${s.polled_ist} IST (${f(d.age_s / 60, 0)} min ago).</p>`;
   document.getElementById('asof').textContent = `polled ${s.polled_ist} IST · ${f(d.age_s, 0)} s ago · exchange stamp ${s.as_on_ist.slice(11)}`;
   const fresh = lastAsOf !== s.as_on; lastAsOf = s.as_on;
   document.getElementById('pairs').innerHTML = s.pairs.map(pairCard).join('');
@@ -117,7 +119,8 @@ function render(d) {
     <h2 style="margin-top:14px">Backtest verdict</h2>${v}
     <p class="note">A live flag needs an unusual z-score and an executable gap above the cost hurdle. The walk-forward found no persistent edge, so flags are informational.</p>`;
 
-  const t = d.ticks || [], x = t.map(k => new Date(k.t * 1000));
+  const day = s.polled_ist.slice(0, 10), istDay = ts => new Date((ts + 19800) * 1000).toISOString().slice(0, 10);
+  const t = (d.ticks || []).filter(k => istDay(k.t) === day), x = t.map(k => new Date(k.t * 1000));
   const traces = [
     { x, y:t.map(k => k.p0), name:'PETAL', line:{ color:C.gold, width:2 } },
     { x, y:t.map(k => k.e0), name:'PETAL exec', line:{ color:C.gold, width:1, dash:'dot' } },

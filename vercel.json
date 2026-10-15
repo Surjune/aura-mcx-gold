@@ -3,7 +3,7 @@
   "cleanUrls": true,
   "functions": {
     "api/index.py": {
-      "includeFiles": "{aura/**,data/results.json}"
+      "includeFiles": "{aura/**,data/results.json,data/last_session.json}"
     }
   },
   "rewrites": [

@@ -18,6 +18,7 @@ RESULTS = ROOT / "data" / "results.json"
 DASHBOARD = ROOT / "public" / "index.html"  # on Vercel the CDN serves this file directly
 LIVE = ROOT / "data" / "live.json"          # written by `python -m aura.live` (local mode)
 TICKS = ROOT / "data" / "live_ticks.json"
+SESSION = ROOT / "data" / "last_session.json"  # committed by the poller
 
 app = FastAPI(title="AuRA", description="Relative-value analytics for MCX gold futures")
 
@@ -67,22 +68,33 @@ def _upstash(cmds: list[list[str]]) -> list:
 
 @app.get("/api/live")
 def live() -> dict:
-    """Latest real-time snapshot from the poller plus today's ticks; status "offline" if none."""
+    """Latest real-time snapshot and today's ticks.
+
+    Sources in order: Upstash (deployed, poller running), local files (poller on this
+    machine), then the committed last session, replayed when no poller is running.
+    """
+    snap, ticks, source = None, [], None
     if all(upstash(read_only=True)):
-        snap, ticks = _upstash([["GET", "aura:live"], ["LRANGE", "aura:ticks", "0", "-1"]])
-        snap = json.loads(snap) if snap else None
-        ticks = [json.loads(t) for t in ticks or []]
-        source = "upstash"
-    else:
-        snap = json.loads(LIVE.read_text(encoding="utf-8")) if LIVE.exists() else None
+        raw, raw_ticks = _upstash([["GET", "aura:live"], ["LRANGE", "aura:ticks", "0", "-1"]])
+        if raw:
+            snap, ticks, source = json.loads(raw), [json.loads(x) for x in raw_ticks or []], "upstash"
+    if snap is None and LIVE.exists():
+        snap = json.loads(LIVE.read_text(encoding="utf-8"))
         ticks = json.loads(TICKS.read_text(encoding="utf-8")) if TICKS.exists() else []
         source = "local"
+    if snap is None and SESSION.exists():
+        archive = json.loads(SESSION.read_text(encoding="utf-8"))
+        snap, ticks, source = archive["snapshot"], archive["ticks"], "session archive"
     if snap is None:
-        return {"status": "offline", "source": source, "ticks": ticks}
+        return {"status": "offline", "source": None, "ticks": []}
     age = time.time() - snap["published"]
-    status = "live" if age < 3 * snap["poll_s"] else "delayed" if age < 600 else "offline"
-    return {"status": status if snap["market_open"] else "closed", "age_s": age, "source": source,
-            "snapshot": snap, "ticks": ticks}
+    if age < 3 * snap["poll_s"]:
+        status = "live" if snap["market_open"] else "closed"
+    elif age < 600:
+        status = "delayed"
+    else:
+        status = "replay"
+    return {"status": status, "age_s": age, "source": source, "snapshot": snap, "ticks": ticks}
 
 
 @app.get("/")
