@@ -40,6 +40,17 @@ def test_flag_requires_executable_gap_above_hurdle():
     assert p["status"] == "flagged" and p["exec_gap_bps"] == pytest.approx(16.7)
 
 
+def test_published_tick_carries_last_trade_and_executable_premiums(tmp_path, monkeypatch):
+    from aura import live
+    monkeypatch.setattr(live, "LIVE", tmp_path / "live.json")
+    monkeypatch.setattr(live, "TICKS", tmp_path / "ticks.json")
+    monkeypatch.delenv("KV_REST_API_URL", raising=False)
+    pair = classify("x", 40.0, 39.0, 41.0, HIST, hurdle=13.0, tradeable=True)
+    live.publish({"as_on": 1.0, "published": 100.0, "pairs": [pair]})
+    tick = json.loads((tmp_path / "ticks.json").read_text())[-1]
+    assert tick == {"t": 100, "p0": 40.0, "e0": 39.0}
+
+
 def test_different_expiry_pair_is_never_flagged():
     p = classify("GOLDM", 60.0, None, None, HIST, hurdle=13.0, tradeable=False)
     assert p["status"] == "watch"

@@ -147,7 +147,8 @@ def market_open(now: datetime) -> bool:
 
 
 def publish(snap: dict) -> None:
-    tick = {"t": round(snap["published"]),  # poll time: MCX's own stamp only moves once a minute **{f"p{i}": round(p["premium_bps"], 2) for i, p in enumerate(snap["pairs"])},
+    # Ticks are stamped with the poll time: MCX's own "as on" stamp only moves once a minute.
+    tick = {"t": round(snap["published"]), **{f"p{i}": round(p["premium_bps"], 2) for i, p in enumerate(snap["pairs"])},
             **{f"e{i}": (round(p["exec_sell_bps"], 2) if p["exec_sell_bps"] is not None else None) for i, p in enumerate(snap["pairs"])}}
     ticks = json.loads(TICKS.read_text(encoding="utf-8")) if TICKS.exists() else []
     if not ticks or ticks[-1]["t"] != tick["t"]:
