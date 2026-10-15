@@ -4,11 +4,9 @@
 
 Team **Lightning Logics** · Hack in Hills '26 · Track 03: Commodity Derivatives Intelligence
 
-| | |
-|---|---|
-| Live dashboard | https://aura.lightninglogics.me |
-| Live MCX monitor | https://aura.lightninglogics.me/live |
-| Demo video (2 min) | https://youtu.be/29peqQnTcX8 |
+- **Live dashboard:** https://aura.lightninglogics.me
+- **Live MCX monitor:** https://aura.lightninglogics.me/live
+- **Demo video (2 min):** https://youtu.be/29peqQnTcX8
 
 ---
 
