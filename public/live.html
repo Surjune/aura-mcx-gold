@@ -68,6 +68,8 @@
 <script>
 const C = { navy:'#1E3A5F', gold:'#B8862B', teal:'#2A7F8E', rose:'#A4505E', muted:'#5B6573' };
 const f = (x, d = 1) => x == null ? '–' : Number(x).toLocaleString('en-IN', { minimumFractionDigits:d, maximumFractionDigits:d });
+const ago = s => s < 90 ? `${Math.round(s)} s ago` : s < 5400 ? `${Math.round(s / 60)} min ago`
+  : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`;
 const sgn = (x, d = 1) => x == null ? '–' : (x > 0 ? '+' : '') + f(x, d);
 const LABEL = { live:'LIVE', delayed:'DELAYED', closed:'MARKET CLOSED', replay:'REPLAY · LAST SESSION', offline:'OFFLINE' };
 let lastAsOf = null, chartReady = false;
@@ -98,8 +100,8 @@ function render(d) {
   banner.style.display = st === 'live' ? 'none' : 'block';
   if (st !== 'live') banner.innerHTML = st === 'replay'
     ? `<h2>Replay of the last real session: ${s.polled_ist.slice(0, 10)}</h2><p class="note">Real MCX quotes captured by the AuRA poller, last update ${s.polled_ist} IST. The live feed runs while the team's poller is on during MCX hours (09:00–23:30 IST, weekdays); a production deployment would use a licensed broker feed.</p>`
-    : `<h2>${st === 'closed' ? 'Market closed' : 'Feed delayed'}</h2><p class="note">Showing the last snapshot from ${s.polled_ist} IST (${f(d.age_s / 60, 0)} min ago).</p>`;
-  document.getElementById('asof').textContent = `polled ${s.polled_ist} IST · ${f(d.age_s, 0)} s ago · exchange stamp ${s.as_on_ist.slice(11)}`;
+    : `<h2>${st === 'closed' ? 'Market closed' : 'Feed delayed'}</h2><p class="note">Showing the last snapshot from ${s.polled_ist} IST (${ago(d.age_s)}).</p>`;
+  document.getElementById('asof').textContent = `polled ${s.polled_ist} IST · ${ago(d.age_s)} · exchange stamp ${s.as_on_ist.slice(11)}`;
   const fresh = lastAsOf !== s.as_on; lastAsOf = s.as_on;
   document.getElementById('pairs').innerHTML = s.pairs.map(pairCard).join('');
   if (fresh) s.pairs.forEach((_, i) => document.getElementById('big' + i)?.classList.add('flash'));
