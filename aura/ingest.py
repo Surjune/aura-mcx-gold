@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import duckdb
+import pandas as pd
 
 from aura.specs import SYMBOLS
 
@@ -108,7 +109,12 @@ def load_db() -> dict[str, int]:
             open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE, prev_close DOUBLE,
             volume_lots BIGINT, oi_lots BIGINT, value_lakhs DOUBLE,
             PRIMARY KEY (session, symbol, expiry))""")
-    con.executemany("INSERT INTO bhavcopy VALUES (?,?,?,?,?,?,?,?,?,?,?)", rows)
+    # One bulk insert from a DataFrame: row-by-row executemany took minutes for ~12k rows.
+    frame = pd.DataFrame(rows, columns=["session", "symbol", "expiry", "open", "high", "low", "close",
+                                        "prev_close", "volume_lots", "oi_lots", "value_lakhs"])
+    con.register("frame", frame)
+    con.execute("INSERT INTO bhavcopy SELECT * FROM frame")
+    con.unregister("frame")
     n_sessions = con.execute("SELECT count(DISTINCT session) FROM bhavcopy").fetchone()[0]
     con.close()
     return {"rows": len(rows), "sessions": n_sessions, "holidays": holidays, "stale_repeats": stale}
