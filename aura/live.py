@@ -42,6 +42,7 @@ SESSION = ((9, 0), (23, 55))  # MCX trading day in IST (evening session ends 23:
 MAX_TICKS = 4000            # a full 09:00-23:55 session of 15-second ticks
 SESSION_PUSH_S = 3600       # publish the session archive to the repo once an hour
 REFRESH_PAGE_S = 1800       # reopen the MCX page every 30 minutes to keep the session fresh
+STALE_S = 1800              # an exchange stamp older than this means MCX is not trading (holiday session)
 
 FETCH_JS = """async (u) => {
   const r = await fetch(u, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
@@ -148,6 +149,11 @@ def classify(label: str, prem: float, sell_x: float | None, buy_x: float | None,
             "status": status, "why": why}
 
 
+def exchange_stale(as_on: float, now: float) -> bool:
+    """True when MCX's own quote stamp has not moved for STALE_S: the clock says open, the exchange doesn't."""
+    return now - as_on > STALE_S
+
+
 def market_open(now: datetime) -> bool:
     (h0, m0), (h1, m1) = SESSION
     return now.weekday() < 5 and (h0, m0) <= (now.hour, now.minute) <= (h1, m1)
@@ -252,6 +258,12 @@ def loop(page, hist: dict, remote: str) -> None:
                     raise RuntimeError(f"HTTP {res['status']} for {sym} {exp}")
                 quotes[key] = parse_quote(sym, exp, res["body"])
             snap = snapshot(quotes, hist, contracts)
+            if exchange_stale(snap["as_on"], time.time()):  # e.g. a holiday morning session
+                print(snap["polled_ist"], f"MCX not trading (last update {snap['as_on_ist']} IST); "
+                      f"next check in {CLOSED_POLL_S} s", flush=True)
+                fails = 0
+                time.sleep(CLOSED_POLL_S)
+                continue
             publish(snap)
             line = "  ".join(f"{x['pair'].split()[0]} {x['premium_bps']:+.1f}bps z{x['z']:+.1f} {x['status']}" for x in snap["pairs"])
             print(snap["polled_ist"], "published", remote, "|", line, flush=True)

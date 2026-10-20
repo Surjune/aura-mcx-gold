@@ -99,7 +99,7 @@ function render(d) {
   const s = d.snapshot;
   banner.style.display = st === 'live' ? 'none' : 'block';
   if (st !== 'live') banner.innerHTML = st === 'replay'
-    ? `<h2>Replay of the last real session: ${s.polled_ist.slice(0, 10)}</h2><p class="note">Real MCX quotes captured by the AuRA poller, last update ${s.polled_ist} IST. The live feed runs while the team's poller is on during MCX hours (09:00–23:30 IST, weekdays); a production deployment would use a licensed broker feed.</p>`
+    ? `<h2>Replay of the last real session: ${s.as_on_ist.slice(0, 10)}</h2><p class="note">Real MCX quotes captured by the AuRA poller, last update ${s.polled_ist} IST. The live feed runs while the team's poller is on during MCX hours (09:00–23:30 IST, weekdays); a production deployment would use a licensed broker feed.</p>`
     : `<h2>${st === 'closed' ? 'Market closed' : 'Feed delayed'}</h2><p class="note">Showing the last snapshot from ${s.polled_ist} IST (${ago(d.age_s)}).</p>`;
   document.getElementById('asof').textContent = `polled ${s.polled_ist} IST · ${ago(d.age_s)} · exchange stamp ${s.as_on_ist.slice(11)}`;
   const fresh = lastAsOf !== s.as_on; lastAsOf = s.as_on;

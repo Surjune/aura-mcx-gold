@@ -107,3 +107,10 @@ def test_repeated_poll_failures_relaunch_the_browser(monkeypatch):
 
     with pytest.raises(live.BrowserLost):
         live.loop(DeadPage(), {}, "")
+
+
+def test_stale_exchange_stamp_means_not_trading():
+    from aura.live import STALE_S, exchange_stale
+    now = 1_800_000_000
+    assert exchange_stale(now - STALE_S - 1, now)      # holiday morning: last update was last night
+    assert not exchange_stale(now - 60, now)           # normal session: stamp moves every minute
