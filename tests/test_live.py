@@ -90,3 +90,20 @@ def test_api_reports_live_for_a_fresh_snapshot(tmp_path, monkeypatch):
 def test_different_expiry_pair_is_never_flagged():
     p = classify("GOLDM", 60.0, None, None, HIST, hurdle=13.0, tradeable=False)
     assert p["status"] == "watch"
+
+
+def test_repeated_poll_failures_relaunch_the_browser(monkeypatch):
+    from aura import live
+    monkeypatch.setattr(live, "pick_contracts",
+                        lambda d: {"ten": date(2099, 1, 30), "ten_next": date(2099, 2, 27), "m": date(2099, 2, 5)})
+    monkeypatch.setattr(live, "market_open", lambda now: True)
+    monkeypatch.setattr(live.time, "sleep", lambda s: None)
+
+    class DeadPage:  # what Playwright looks like after the PC wakes from sleep
+        def goto(self, *a, **k):
+            raise RuntimeError("Connection closed while reading from the driver")
+
+        evaluate = goto
+
+    with pytest.raises(live.BrowserLost):
+        live.loop(DeadPage(), {}, "")

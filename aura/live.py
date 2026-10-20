@@ -200,18 +200,31 @@ def run() -> None:
     load_env()
     hist = history()
     remote = "and Upstash" if all(upstash()) else "(local only: no Upstash keys)"
-    with sync_playwright() as p:
-        browser = p.chromium.launch(channel="msedge", headless=True, args=["--disable-blink-features=AutomationControlled"])
-        page = browser.new_context(user_agent=USER_AGENT, locale="en-IN").new_page()
+    while True:
         try:
-            loop(page, hist, remote)
+            with sync_playwright() as p:
+                browser = p.chromium.launch(channel="msedge", headless=True,
+                                            args=["--disable-blink-features=AutomationControlled"])
+                page = browser.new_context(user_agent=USER_AGENT, locale="en-IN").new_page()
+                loop(page, hist, remote)
         except KeyboardInterrupt:
             save_session("poller stopped")
+            return
+        except BrowserLost as exc:  # e.g. the PC slept: start a fresh browser and carry on
+            print(datetime.now(IST).strftime("%H:%M:%S"), "restarting browser:", exc, flush=True)
+            time.sleep(30)
+
+
+class BrowserLost(RuntimeError):
+    """Polls keep failing: the browser or its driver is gone and must be relaunched."""
+
+
+MAX_FAILS = 4  # consecutive failed polls before the browser is relaunched
 
 
 def loop(page, hist: dict, remote: str) -> None:
-    """Poll while MCX is open; archive the session hourly and at the close."""
-    opened, contracts, was_open, archived = 0.0, None, False, time.time()
+    """Poll while MCX is open; archive the session at the first poll, hourly and at the close."""
+    opened, contracts, was_open, archived, fails = 0.0, None, False, 0.0, 0
     while True:
         now = datetime.now(IST)
         if contracts is None or contracts["ten"] - now.date() < timedelta(days=MIN_DTE):
@@ -242,13 +255,15 @@ def loop(page, hist: dict, remote: str) -> None:
             publish(snap)
             line = "  ".join(f"{x['pair'].split()[0]} {x['premium_bps']:+.1f}bps z{x['z']:+.1f} {x['status']}" for x in snap["pairs"])
             print(snap["polled_ist"], "published", remote, "|", line, flush=True)
-            was_open = True
+            was_open, fails = True, 0
             if time.time() - archived > SESSION_PUSH_S:
                 save_session("hourly")
                 archived = time.time()
         except Exception as exc:  # network blip or session expiry: reopen the page next cycle
             print(datetime.now(IST).strftime("%H:%M:%S"), "poll failed:", exc, flush=True)
-            opened = 0.0
+            opened, fails = 0.0, fails + 1
+            if fails >= MAX_FAILS:
+                raise BrowserLost(exc) from exc
         time.sleep(POLL_S)
 
 
