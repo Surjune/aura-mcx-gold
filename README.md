@@ -156,5 +156,5 @@ tests/       units, date parsing, costs, no look-ahead, live flag rules, API fal
 | Member | Role |
 |---|---|
 | R S Surjune | Team lead, quant and backend |
-| Abhinandana B | Market research and modelling |
+| Suman N | Market research and modelling |
 | Nithiesh Karthick | Frontend and visualisation |
