@@ -11,3 +11,5 @@ data/*
 *.duckdb.wal
 .env
 .vercel
+node_modules/
+dist/

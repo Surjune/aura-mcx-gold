@@ -201,9 +201,16 @@ def save_session(reason: str) -> None:
 
 
 def run() -> None:
-    from playwright.sync_api import sync_playwright
-
     load_env()
+    # Keep the original browser-based MCX source as the default.  Angel One is an
+    # explicit alternative data transport, not a replacement for this monitor.
+    from aura.config import live_source
+    if live_source() == "angelone":
+        from aura.angel_one import run as run_angel_one
+        run_angel_one()
+        return
+
+    from playwright.sync_api import sync_playwright
     hist = history()
     remote = "and Upstash" if all(upstash()) else "(local only: no Upstash keys)"
     while True:

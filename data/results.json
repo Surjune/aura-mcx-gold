@@ -1,90 +1,90 @@
 {
  "data": {
   "from": "2025-04-01",
-  "to": "2026-10-14",
-  "sessions": 395,
-  "rows": 11644,
+  "to": "2026-10-19",
+  "sessions": 398,
+  "rows": 11716,
   "contracts": 142
  },
  "premiums": {
   "GOLDPETAL": {
-   "n": 395,
-   "mean": 84.5835,
-   "sd": 57.8827,
-   "median": 69.2317,
-   "p05": 27.4891,
-   "p95": 211.2667,
+   "n": 398,
+   "mean": 84.3195,
+   "sd": 57.7434,
+   "median": 68.7615,
+   "p05": 27.506,
+   "p95": 211.0977,
    "min": 11.3096,
    "max": 399.2779,
    "share_positive": 1.0,
-   "half_life": 7.4865
+   "half_life": 7.5244
   },
   "GOLDGUINEA": {
-   "n": 395,
-   "mean": 68.425,
-   "sd": 56.5293,
-   "median": 50.9082,
-   "p05": 14.1048,
-   "p95": 184.0148,
+   "n": 398,
+   "mean": 68.2774,
+   "sd": 56.3412,
+   "median": 50.8238,
+   "p05": 14.1778,
+   "p95": 183.8128,
    "min": -21.6115,
    "max": 371.323,
-   "share_positive": 0.9924,
-   "half_life": 5.5258
+   "share_positive": 0.9925,
+   "half_life": 5.5344
   },
   "GOLDM_naive": {
-   "n": 395,
-   "mean": -52.5059,
-   "sd": 66.5747,
-   "median": -24.6093,
-   "p05": -169.4325,
-   "p95": -7.7855,
+   "n": 398,
+   "mean": -52.3144,
+   "sd": 66.3594,
+   "median": -24.6336,
+   "p05": -169.1914,
+   "p95": -7.8091,
    "min": -565.7018,
    "max": 5.3447,
-   "share_positive": 0.0127
+   "share_positive": 0.0126
   },
   "GOLDM_purity": {
-   "n": 395,
-   "mean": -12.516,
-   "sd": 66.8423,
-   "median": 15.4928,
-   "p05": -129.9126,
-   "p95": 32.3842,
+   "n": 398,
+   "mean": -12.3237,
+   "sd": 66.6262,
+   "median": 15.4684,
+   "p05": -129.6706,
+   "p95": 32.3605,
    "min": -527.7749,
    "max": 45.5672,
-   "share_positive": 0.6557
+   "share_positive": 0.6583
   },
   "GOLDM_carry": {
-   "n": 395,
-   "mean": -5.7727,
-   "sd": 52.7009,
-   "median": 6.6763,
-   "p05": -72.2493,
-   "p95": 26.5988,
+   "n": 398,
+   "mean": -5.7694,
+   "sd": 52.5019,
+   "median": 6.4631,
+   "p05": -72.079,
+   "p95": 26.5617,
    "min": -589.1043,
    "max": 45.7224,
-   "share_positive": 0.6582,
-   "half_life": 3.4987
+   "share_positive": 0.6533,
+   "half_life": 3.4986
   }
  },
  "carry_pa": {
-  "n": 395,
-  "mean": 11.414,
-  "sd": 6.8327,
-  "median": 9.7385,
-  "p05": 4.309,
-  "p95": 21.2293,
+  "n": 398,
+  "mean": 11.4119,
+  "sd": 6.8069,
+  "median": 9.7748,
+  "p05": 4.3096,
+  "p95": 21.2051,
   "min": 0.7485,
   "max": 51.0579,
   "share_positive": 1.0
  },
  "roll_split": {
-  "days": 1891,
+  "days": 1909,
   "var_total": 0.0003,
   "var_roll": 0.0,
   "var_shift": 0.0003,
-  "mean_roll_bps": -4.4955,
-  "mean_shift_bps": 11.9892,
-  "share_abs_move_from_roll": 0.0385
+  "mean_roll_bps": -4.5004,
+  "mean_shift_bps": 12.1992,
+  "share_abs_move_from_roll": 0.0387
  },
  "lifecycle": [
   {
@@ -459,7 +459,7 @@
    "sessions_to_liquid": 104.0,
    "peak_oi_lots": 15011,
    "delivery_window_from": "2026-10-26",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDGUINEA",
@@ -470,7 +470,7 @@
    "sessions_to_liquid": null,
    "peak_oi_lots": 9072,
    "delivery_window_from": "2026-11-24",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDGUINEA",
@@ -479,9 +479,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 4007,
+   "peak_oi_lots": 4034,
    "delivery_window_from": "2026-12-25",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDGUINEA",
@@ -490,9 +490,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 1906,
+   "peak_oi_lots": 1963,
    "delivery_window_from": "2027-01-25",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDGUINEA",
@@ -503,7 +503,7 @@
    "sessions_to_liquid": null,
    "peak_oi_lots": 576,
    "delivery_window_from": "2027-02-22",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDGUINEA",
@@ -512,9 +512,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 77,
+   "peak_oi_lots": 90,
    "delivery_window_from": "2027-03-25",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDM",
@@ -897,9 +897,9 @@
    "listed_before_data": false,
    "became_liquid": "2026-09-29",
    "sessions_to_liquid": 104.0,
-   "peak_oi_lots": 50079,
+   "peak_oi_lots": 50302,
    "delivery_window_from": "2026-10-30",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDM",
@@ -908,9 +908,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 18420,
+   "peak_oi_lots": 20995,
    "delivery_window_from": "2026-11-30",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDM",
@@ -921,7 +921,7 @@
    "sessions_to_liquid": null,
    "peak_oi_lots": 4449,
    "delivery_window_from": "2026-12-30",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDM",
@@ -930,9 +930,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 2263,
+   "peak_oi_lots": 2287,
    "delivery_window_from": "2027-02-01",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDM",
@@ -941,9 +941,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 404,
+   "peak_oi_lots": 407,
    "delivery_window_from": "2027-03-01",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDM",
@@ -952,9 +952,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 12,
+   "peak_oi_lots": 37,
    "delivery_window_from": "2027-03-30",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDPETAL",
@@ -1328,7 +1328,7 @@
    "sessions_to_liquid": null,
    "peak_oi_lots": 209248,
    "delivery_window_from": "2026-10-26",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDPETAL",
@@ -1339,7 +1339,7 @@
    "sessions_to_liquid": null,
    "peak_oi_lots": 156044,
    "delivery_window_from": "2026-11-24",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDPETAL",
@@ -1348,9 +1348,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 71411,
+   "peak_oi_lots": 74106,
    "delivery_window_from": "2026-12-25",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDPETAL",
@@ -1361,7 +1361,7 @@
    "sessions_to_liquid": null,
    "peak_oi_lots": 39927,
    "delivery_window_from": "2027-01-25",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDPETAL",
@@ -1372,7 +1372,7 @@
    "sessions_to_liquid": null,
    "peak_oi_lots": 14378,
    "delivery_window_from": "2027-02-22",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDPETAL",
@@ -1381,9 +1381,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 3846,
+   "peak_oi_lots": 5357,
    "delivery_window_from": "2027-03-25",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDTEN",
@@ -1592,7 +1592,7 @@
    "sessions_to_liquid": 106.0,
    "peak_oi_lots": 32907,
    "delivery_window_from": "2026-10-26",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDTEN",
@@ -1603,7 +1603,7 @@
    "sessions_to_liquid": null,
    "peak_oi_lots": 19562,
    "delivery_window_from": "2026-11-24",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDTEN",
@@ -1614,7 +1614,7 @@
    "sessions_to_liquid": null,
    "peak_oi_lots": 9357,
    "delivery_window_from": "2026-12-25",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDTEN",
@@ -1623,9 +1623,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 4014,
+   "peak_oi_lots": 4125,
    "delivery_window_from": "2027-01-25",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDTEN",
@@ -1634,9 +1634,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 1046,
+   "peak_oi_lots": 1052,
    "delivery_window_from": "2027-02-22",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   },
   {
    "symbol": "GOLDTEN",
@@ -1645,9 +1645,9 @@
    "listed_before_data": false,
    "became_liquid": null,
    "sessions_to_liquid": null,
-   "peak_oi_lots": 124,
+   "peak_oi_lots": 188,
    "delivery_window_from": "2027-03-25",
-   "last_traded": "2026-10-14"
+   "last_traded": "2026-10-19"
   }
  ],
  "hurdle_bps": 13.0762,
@@ -1662,102 +1662,102 @@
     "entry_dte": 12,
     "exit_dte": 9
    },
-   "holdout_from": "2026-04-15",
+   "holdout_from": "2026-04-20",
    "grid": [
     {
      "window": 40,
      "z_in": 1.5,
-     "dev_sharpe": 0.9245
+     "dev_sharpe": 0.8939
     },
     {
      "window": 40,
      "z_in": 2.0,
-     "dev_sharpe": 0.4657
+     "dev_sharpe": 0.4631
     },
     {
      "window": 40,
      "z_in": 2.5,
-     "dev_sharpe": 0.7182
+     "dev_sharpe": 0.7407
     },
     {
      "window": 60,
      "z_in": 1.5,
-     "dev_sharpe": 0.3931
+     "dev_sharpe": 0.3909
     },
     {
      "window": 60,
      "z_in": 2.0,
-     "dev_sharpe": 0.5927
+     "dev_sharpe": 0.6155
     },
     {
      "window": 60,
      "z_in": 2.5,
-     "dev_sharpe": 0.6222
+     "dev_sharpe": 0.645
     },
     {
      "window": 120,
      "z_in": 1.5,
-     "dev_sharpe": 0.1001
+     "dev_sharpe": 0.1232
     },
     {
      "window": 120,
      "z_in": 2.0,
-     "dev_sharpe": 0.6187
+     "dev_sharpe": 0.6152
     },
     {
      "window": 120,
      "z_in": 2.5,
-     "dev_sharpe": 0.6881
+     "dev_sharpe": 0.6842
     }
    ],
    "development": {
     "from": "2025-04-01",
-    "to": "2026-04-14",
-    "sessions": 265,
-    "trades": 14,
-    "win_rate": 0.7857,
-    "gross_rs": 66050.0,
-    "costs_rs": 22271.2043,
-    "net_rs": 43778.7957,
-    "gross_bps_per_trade": 35.5813,
-    "cost_bps_per_trade": 13.4475,
-    "net_bps_per_trade": 22.1338,
-    "avg_hold": 6.4286,
-    "best_trade_share": 0.776,
-    "net_bps_ex_best": 7.582,
-    "sharpe": 0.9245,
+    "to": "2026-04-17",
+    "sessions": 268,
+    "trades": 15,
+    "win_rate": 0.8,
+    "gross_rs": 69040.0,
+    "costs_rs": 24266.5992,
+    "net_rs": 44773.4008,
+    "gross_bps_per_trade": 34.5144,
+    "cost_bps_per_trade": 13.422,
+    "net_bps_per_trade": 21.0924,
+    "avg_hold": 6.3333,
+    "best_trade_share": 0.7587,
+    "net_bps_ex_best": 7.5056,
+    "sharpe": 0.8939,
     "max_dd_rs": -27228.0905,
-    "corr_gold": 0.0208,
-    "beta_rs_per_1pct_gold": 31.4381,
-    "bootstrap_p": 0.1164,
-    "deflated_sharpe_prob": 0.7379
+    "corr_gold": 0.0207,
+    "beta_rs_per_1pct_gold": 31.279,
+    "bootstrap_p": 0.1246,
+    "deflated_sharpe_prob": 0.7322
    },
    "holdout": {
-    "from": "2026-04-15",
-    "to": "2026-10-14",
+    "from": "2026-04-20",
+    "to": "2026-10-19",
     "sessions": 130,
-    "trades": 7,
-    "win_rate": 0.4286,
-    "gross_rs": 12140.0,
-    "costs_rs": 13657.3274,
-    "net_rs": -1517.3274,
-    "gross_bps_per_trade": 11.7407,
-    "cost_bps_per_trade": 13.1404,
-    "net_bps_per_trade": -1.3997,
-    "avg_hold": 4.2857,
+    "trades": 6,
+    "win_rate": 0.3333,
+    "gross_rs": 9150.0,
+    "costs_rs": 11661.9325,
+    "net_rs": -2511.9325,
+    "gross_bps_per_trade": 10.4346,
+    "cost_bps_per_trade": 13.153,
+    "net_bps_per_trade": -2.7184,
+    "avg_hold": 4.1667,
     "best_trade_share": null,
-    "net_bps_ex_best": -3.6966,
-    "sharpe": -0.4527,
+    "net_bps_ex_best": -5.7384,
+    "sharpe": -0.0517,
     "max_dd_rs": -7854.862,
-    "corr_gold": -0.0844,
-    "beta_rs_per_1pct_gold": -58.0705,
-    "bootstrap_p": 0.7566,
-    "deflated_sharpe_prob": 0.3758
+    "corr_gold": -0.0733,
+    "beta_rs_per_1pct_gold": -50.1288,
+    "bootstrap_p": 0.5248,
+    "deflated_sharpe_prob": 0.4853
    },
    "full": {
     "from": "2025-04-01",
-    "to": "2026-10-14",
-    "sessions": 395,
+    "to": "2026-10-19",
+    "sessions": 398,
     "trades": 21,
     "win_rate": 0.6667,
     "gross_rs": 78190.0,
@@ -1769,12 +1769,12 @@
     "avg_hold": 5.7143,
     "best_trade_share": 0.8038,
     "net_bps_ex_best": 4.4384,
-    "sharpe": 0.6908,
+    "sharpe": 0.7134,
     "max_dd_rs": -27228.0905,
-    "corr_gold": 0.0144,
-    "beta_rs_per_1pct_gold": 20.2025,
-    "bootstrap_p": 0.1418,
-    "deflated_sharpe_prob": 0.6758
+    "corr_gold": 0.0148,
+    "beta_rs_per_1pct_gold": 20.7716,
+    "bootstrap_p": 0.1288,
+    "deflated_sharpe_prob": 0.6938
    }
   },
   "GOLDGUINEA": {
@@ -1787,58 +1787,58 @@
     "entry_dte": 12,
     "exit_dte": 9
    },
-   "holdout_from": "2026-04-15",
+   "holdout_from": "2026-04-20",
    "grid": [
     {
      "window": 40,
      "z_in": 1.5,
-     "dev_sharpe": 0.8645
+     "dev_sharpe": 0.8578
     },
     {
      "window": 40,
      "z_in": 2.0,
-     "dev_sharpe": 0.9008
+     "dev_sharpe": 0.8958
     },
     {
      "window": 40,
      "z_in": 2.5,
-     "dev_sharpe": 0.7466
+     "dev_sharpe": 0.7424
     },
     {
      "window": 60,
      "z_in": 1.5,
-     "dev_sharpe": 0.0821
+     "dev_sharpe": 0.0816
     },
     {
      "window": 60,
      "z_in": 2.0,
-     "dev_sharpe": 0.644
+     "dev_sharpe": 0.6542
     },
     {
      "window": 60,
      "z_in": 2.5,
-     "dev_sharpe": 0.6108
+     "dev_sharpe": 0.6216
     },
     {
      "window": 120,
      "z_in": 1.5,
-     "dev_sharpe": 0.6036
+     "dev_sharpe": 0.6145
     },
     {
      "window": 120,
      "z_in": 2.0,
-     "dev_sharpe": 0.8093
+     "dev_sharpe": 0.8047
     },
     {
      "window": 120,
      "z_in": 2.5,
-     "dev_sharpe": 0.9691
+     "dev_sharpe": 0.9636
     }
    ],
    "development": {
     "from": "2025-04-01",
-    "to": "2026-04-14",
-    "sessions": 265,
+    "to": "2026-04-17",
+    "sessions": 268,
     "trades": 4,
     "win_rate": 0.75,
     "gross_rs": 41280.0,
@@ -1850,16 +1850,16 @@
     "avg_hold": 8.25,
     "best_trade_share": 0.9692,
     "net_bps_ex_best": 1.8571,
-    "sharpe": 0.9691,
+    "sharpe": 0.9636,
     "max_dd_rs": -20416.0975,
     "corr_gold": 0.1175,
-    "beta_rs_per_1pct_gold": 136.9138,
-    "bootstrap_p": 0.1568,
-    "deflated_sharpe_prob": 0.7612
+    "beta_rs_per_1pct_gold": 136.8166,
+    "bootstrap_p": 0.1558,
+    "deflated_sharpe_prob": 0.7622
    },
    "holdout": {
-    "from": "2026-04-15",
-    "to": "2026-10-14",
+    "from": "2026-04-20",
+    "to": "2026-10-19",
     "sessions": 130,
     "trades": 0,
     "win_rate": null,
@@ -1881,8 +1881,8 @@
    },
    "full": {
     "from": "2025-04-01",
-    "to": "2026-10-14",
-    "sessions": 395,
+    "to": "2026-10-19",
+    "sessions": 398,
     "trades": 4,
     "win_rate": 0.75,
     "gross_rs": 41280.0,
@@ -1894,12 +1894,12 @@
     "avg_hold": 8.25,
     "best_trade_share": 0.9692,
     "net_bps_ex_best": 1.8571,
-    "sharpe": 0.7937,
+    "sharpe": 0.7908,
     "max_dd_rs": -20416.0975,
     "corr_gold": 0.1094,
-    "beta_rs_per_1pct_gold": 116.4002,
+    "beta_rs_per_1pct_gold": 116.2534,
     "bootstrap_p": 0.1636,
-    "deflated_sharpe_prob": 0.7262
+    "deflated_sharpe_prob": 0.7277
    }
   }
  },
@@ -2166,28 +2166,28 @@
  "signals": [
   {
    "pair": "GOLDPETAL vs GOLDTEN",
-   "session": "2026-10-14",
+   "session": "2026-10-19",
    "expiry": "2026-10-30",
-   "premium_bps": 58.4578,
-   "mean_bps": 32.8824,
-   "z": 2.6654,
-   "gap_bps": 25.5754,
-   "dte": 16,
-   "action": "flagged",
-   "why": "rich by 25.6 bps vs its 40-session mean",
+   "premium_bps": 47.7552,
+   "mean_bps": 34.2517,
+   "z": 1.2319,
+   "gap_bps": 13.5035,
+   "dte": 11,
+   "action": "normal",
+   "why": "|z| 1.2 below 1.5 - normal noise",
    "validated": "no persistent edge after costs"
   },
   {
    "pair": "GOLDGUINEA vs GOLDTEN",
-   "session": "2026-10-14",
+   "session": "2026-10-19",
    "expiry": "2026-10-30",
-   "premium_bps": 63.628,
-   "mean_bps": 44.984,
-   "z": 1.2718,
-   "gap_bps": 18.644,
-   "dte": 16,
+   "premium_bps": 47.4987,
+   "mean_bps": 44.8981,
+   "z": 0.178,
+   "gap_bps": 2.6006,
+   "dte": 11,
    "action": "normal",
-   "why": "|z| 1.3 below 2.5 - normal noise",
+   "why": "|z| 0.2 below 2.5 - normal noise",
    "validated": "no persistent edge after costs"
   }
  ],
@@ -2587,7 +2587,10 @@
    "2026-10-09",
    "2026-10-12",
    "2026-10-13",
-   "2026-10-14"
+   "2026-10-14",
+   "2026-10-15",
+   "2026-10-16",
+   "2026-10-19"
   ],
   "ten_fine": [
    9082.5826,
@@ -2984,7 +2987,10 @@
    15060.961,
    14884.1842,
    14771.4715,
-   14520.7207
+   14520.7207,
+   14666.7668,
+   14696.5966,
+   14630.8308
   ],
   "petal_fine": [
    9161.1612,
@@ -3381,7 +3387,10 @@
    15116.1161,
    14953.954,
    14850.8509,
-   14605.6056
+   14605.6056,
+   14741.7417,
+   14769.7698,
+   14700.7007
   ],
   "guinea_fine": [
    9117.2422,
@@ -3778,7 +3787,10 @@
    15108.8589,
    14958.7087,
    14851.2262,
-   14613.1131
+   14613.1131,
+   14742.8679,
+   14765.8909,
+   14700.3253
   ],
   "m_fine": [
    9086.3317,
@@ -4175,7 +4187,10 @@
    15088.4422,
    14903.8191,
    14791.5578,
-   14542.3116
+   14542.3116,
+   14689.4472,
+   14716.0804,
+   14645.8291
   ],
   "prem_petal": [
    86.5157,
@@ -4572,7 +4587,10 @@
    36.6213,
    46.8751,
    53.7383,
-   58.4578
+   58.4578,
+   51.119,
+   49.7892,
+   47.7552
   ],
   "prem_guinea": [
    38.1606,
@@ -4969,7 +4987,10 @@
    31.8027,
    50.0696,
    53.9924,
-   63.628
+   63.628,
+   51.8868,
+   47.1499,
+   47.4987
   ],
   "m_naive": [
    -35.9288,
@@ -5366,7 +5387,10 @@
    -21.8664,
    -26.9011,
    -26.4964,
-   -25.2306
+   -25.2306,
+   -24.6381,
+   -26.8358,
+   -29.8299
   ],
   "m_purity": [
    4.1278,
@@ -5763,7 +5787,10 @@
    18.2467,
    13.1918,
    13.598,
-   14.869
+   14.869,
+   15.4639,
+   13.2574,
+   10.2512
   ],
   "m_carry": [
    -2.5272,
@@ -6160,7 +6187,10 @@
    0.4951,
    -3.7675,
    -4.3872,
-   -3.5067
+   -3.5067,
+   -2.3384,
+   -5.3535,
+   -8.3062
   ],
   "carry_pa": [
    4.8578,
@@ -6557,7 +6587,10 @@
    10.7888,
    10.3121,
    10.936,
-   11.1722
+   11.1722,
+   10.8226,
+   11.3171,
+   11.288
   ],
   "equity": {
    "GOLDPETAL": [
@@ -6955,7 +6988,10 @@
     42261.4683,
     42261.4683,
     41293.1417,
-    40743.1417
+    40743.1417,
+    41733.1417,
+    41913.1417,
+    42243.1417
    ],
    "GOLDGUINEA": [
     0.0,
@@ -7171,6 +7207,9 @@
     22061.2592,
     42783.2592,
     34641.2592,
+    35374.548,
+    35374.548,
+    35374.548,
     35374.548,
     35374.548,
     35374.548,

@@ -1,123 +1,18 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AuRA Gold Board</title>
-<link rel="icon" href="data:,">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.34.0/plotly.min.js"></script>
-<style>
-  :root { --navy:#1E3A5F; --gold:#B8862B; --tint:#F7F0E1; --ink:#1D1D1F; --muted:#5B6573; --line:#C9D3E0; --bg:#F4F6F9; --card:#fff; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: Calibri, "Segoe UI", Arial, sans-serif; background:var(--bg); color:var(--ink); }
-  header { background:var(--navy); color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; }
-  header h1 { margin:0; font-size:22px; } header h1 b { color:#F2D58A; }
-  header span { color:#C9D3E0; font-size:14px; }
-  main { padding:18px 24px; display:grid; gap:16px; grid-template-columns:repeat(12, 1fr); }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
-  .card h2 { margin:0 0 8px; font-size:17px; color:var(--navy); }
-  .card p.note { margin:6px 0 0; color:var(--muted); font-size:13px; }
-  .kpis { grid-column:span 12; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; }
-  .kpi { background:var(--tint); border:1px solid #DCC79A; border-radius:10px; padding:12px 14px; }
-  .kpi b { display:block; font-size:26px; color:var(--navy); } .kpi span { font-size:13px; color:var(--ink); }
-  .w12 { grid-column:span 12; } .w6 { grid-column:span 6; } .w7 { grid-column:span 7; } .w5 { grid-column:span 5; }
-  @media (max-width: 900px) { .w6, .w7, .w5 { grid-column:span 12; } main { padding:12px; } }
-  table { width:100%; border-collapse:collapse; font-size:14px; }
-  th { text-align:left; color:var(--muted); font-weight:600; border-bottom:1px solid var(--line); padding:6px 8px; }
-  td { padding:6px 8px; border-bottom:1px solid #EDF0F4; }
-  td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
-  .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600; }
-  .trade { background:#E3F1E6; color:#1F6B35; } .none { background:#EEF2F7; color:var(--muted); }
-  .chart { width:100%; height:300px; }
-  .scroll { max-height:320px; overflow:auto; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AuRA // MCX Bullion Relative-Value Terminal</title>
+  <meta name="description" content="Aurum Relative-value Analytics — Institutional Quantitative Terminal for MCX Gold Futures (GOLDM, GOLDTEN, GOLDGUINEA, GOLDPETAL)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script type="module" crossorigin src="/assets/main-CVUpZ4su.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/main-DzYzWaQx.css">
 </head>
 <body>
-<header><h1><b>AuRA</b> Gold Board</h1><span><span id="meta">loading...</span> &nbsp;·&nbsp; <a href="/live" style="color:#F2D58A;font-weight:700;text-decoration:none">● Live monitor →</a></span></header>
-<main>
-  <section class="card w12" id="verdict" style="border-color:#DCC79A;background:#F7F0E1"></section>
-  <section class="kpis" id="kpis"></section>
-
-  <section class="card w7"><h2>Normalised price, ₹ per gram of fine gold</h2><div id="c-fine" class="chart"></div>
-    <p class="note">Price ÷ quote grams ÷ purity. Contracts with the same delivery date as GOLDTEN.</p></section>
-  <section class="card w5"><h2>Signals today</h2><div id="signals"></div>
-    <p class="note">A pair is only flagged when it is unusual (|z| above threshold) and the gap clears the round-trip cost hurdle.</p></section>
-
-  <section class="card w6"><h2>Premium vs GOLDTEN, same expiry (bps)</h2><div id="c-prem" class="chart"></div></section>
-  <section class="card w6"><h2>The carry trap: GOLDM vs GOLDTEN (bps)</h2><div id="c-trap" class="chart"></div>
-    <p class="note">Naive gap → purity-adjusted → purity + carry adjusted along the GOLDTEN curve.</p></section>
-
-  <section class="card w7"><h2>Walk-forward backtest, net of all costs</h2><div id="bt"></div>
-    <p class="note">Parameters picked on the development period only; the holdout was never used for tuning.</p></section>
-  <section class="card w5"><h2>Cumulative net P&amp;L (₹)</h2><div id="c-eq" class="chart"></div></section>
-
-  <section class="card w12"><h2>Contract lifecycle</h2><div class="scroll" id="life"></div>
-    <p class="note">Liquid = carries at least half its symbol's open interest. Delivery window = final 5 sessions before expiry.</p></section>
-</main>
-<script>
-const C = { navy:'#1E3A5F', gold:'#B8862B', teal:'#2A7F8E', rose:'#A4505E', muted:'#5B6573' };
-const f = (x, d = 1) => x == null ? '–' : Number(x).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
-const layout = (yTitle) => ({ margin:{ l:56, r:12, t:8, b:36 }, paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
-  font:{ family:'Calibri, Segoe UI, Arial', size:12, color:C.muted }, legend:{ orientation:'h', y:1.12 },
-  yaxis:{ title:yTitle, gridcolor:'#E6EAF0', zerolinecolor:'#C9D3E0' }, xaxis:{ gridcolor:'rgba(0,0,0,0)' } });
-const line = (x, y, name, color, extra = {}) => ({ x, y, name, type:'scatter', mode:'lines', line:{ color, width:1.8 }, connectgaps:false, ...extra });
-const cfg = { displayModeBar:false, responsive:true };
-
-async function get(path) { const r = await fetch(path); if (!r.ok) throw new Error((await r.json()).detail || r.status); return r.json(); }
-
-(async () => {
-  try {
-    const [sum, sig, bt, s, life] = await Promise.all(['/api/summary', '/api/signals', '/api/backtest', '/api/series', '/api/contracts'].map(get));
-    const d = sum.data, p = sum.premiums;
-    document.getElementById('verdict').innerHTML = `<h2>Out-of-sample verdict</h2>` + Object.entries(sum.verdict)
-      .map(([k, v]) => `<b>${k} vs GOLDTEN:</b> ${v}`).join(' &nbsp;·&nbsp; ') +
-      `<p class="note">Small lots carry a standing premium to GOLDTEN; deviations around it mean-revert but do not pay after costs on the untouched holdout. Flags below are informational.</p>`;
-    document.getElementById('meta').textContent = `MCX bhavcopy · ${d.sessions} sessions · ${d.from} → ${d.to}`;
-    document.getElementById('kpis').innerHTML = [
-      [f(p.GOLDPETAL.median) + ' bps', 'PETAL median premium to GOLDTEN'],
-      [f(p.GOLDGUINEA.median) + ' bps', 'GUINEA median premium to GOLDTEN'],
-      [f(p.GOLDM_carry.median) + ' bps', 'GOLDM gap after purity + carry'],
-      [f(sum.carry_pa.median) + '% p.a.', 'Implied carry, GOLDTEN front curve'],
-      [f(sum.hurdle_bps) + ' bps', 'Round-trip cost hurdle per spread'],
-    ].map(([b, t]) => `<div class="kpi"><b>${b}</b><span>${t}</span></div>`).join('');
-
-    const x = s.session;
-    Plotly.newPlot('c-fine', [line(x, s.ten_fine, 'GOLDTEN', C.navy), line(x, s.guinea_fine, 'GOLDGUINEA', C.teal),
-      line(x, s.petal_fine, 'GOLDPETAL', C.gold), line(x, s.m_fine, 'GOLDM (own expiry)', C.rose, { line:{ color:C.rose, width:1.2, dash:'dot' } })],
-      layout('₹ / g fine'), cfg);
-    Plotly.newPlot('c-prem', [line(x, s.prem_petal, 'PETAL', C.gold), line(x, s.prem_guinea, 'GUINEA', C.teal)], layout('bps'), cfg);
-    Plotly.newPlot('c-trap', [line(x, s.m_naive, 'Naive', C.muted), line(x, s.m_purity, 'Purity-adjusted', C.rose),
-      line(x, s.m_carry, 'Purity + carry', C.navy)], layout('bps'), cfg);
-    Plotly.newPlot('c-eq', Object.entries(s.equity).map(([k, v], i) => line(x, v, k + ' vs TEN', i ? C.teal : C.gold)), layout('₹'), cfg);
-
-    document.getElementById('signals').innerHTML = `<table><tr><th>Pair</th><th class="num">Premium</th><th class="num">z</th><th>Action</th></tr>` +
-      sig.map(r => `<tr><td>${r.pair}</td><td class="num">${f(r.premium_bps)} bps</td><td class="num">${f(r.z, 2)}</td>
-        <td><span class="pill ${r.action === 'flagged' ? 'trade' : 'none'}">${r.action}</span></td></tr>
-        <tr><td colspan="4" style="color:${C.muted};font-size:13px">${r.why} · expiry ${r.expiry} (${r.dte} days) · backtest: ${r.validated}</td></tr>`).join('') + '</table>';
-
-    const rows = [];
-    for (const [sym, r] of Object.entries(bt.summary)) for (const part of ['development', 'holdout']) {
-      const m = r[part];
-      rows.push(`<tr><td>${sym} vs TEN</td><td>${part}<br><span style="color:${C.muted};font-size:12px">${m.from} → ${m.to}</span></td>
-        <td class="num">${m.trades}</td><td class="num">${m.win_rate == null ? '–' : f(m.win_rate * 100, 0) + '%'}</td>
-        <td class="num">${f(m.gross_bps_per_trade)}</td><td class="num">${f(m.cost_bps_per_trade)}</td><td class="num">${f(m.net_bps_per_trade)}</td>
-        <td class="num">${f(m.net_bps_ex_best)}</td>
-        <td class="num">${f(m.sharpe, 2)}</td><td class="num">${f(m.corr_gold, 2)}</td><td class="num">${f(m.bootstrap_p, 2)}</td></tr>`);
-    }
-    document.getElementById('bt').innerHTML = `<table><tr><th>Pair</th><th>Period</th><th class="num">Trades</th><th class="num">Win</th>
-      <th class="num">Gross bps</th><th class="num">Cost bps</th><th class="num">Net bps</th><th class="num">Net ex-best</th><th class="num">Sharpe</th>
-      <th class="num">Corr gold</th><th class="num">Boot p</th></tr>${rows.join('')}</table>`;
-
-    const recent = life.filter(r => r.expiry >= d.to);
-    document.getElementById('life').innerHTML = `<table><tr><th>Contract</th><th>Expiry</th><th>First traded</th><th>Became liquid</th>
-      <th class="num">Sessions to liquid</th><th class="num">Peak OI (lots)</th><th>Delivery window from</th></tr>` +
-      recent.map(r => `<tr><td>${r.symbol}</td><td>${r.expiry}</td><td>${r.first_traded}${r.listed_before_data ? ' *' : ''}</td>
-        <td>${r.became_liquid ?? '–'}</td><td class="num">${r.sessions_to_liquid ?? '–'}</td><td class="num">${f(r.peak_oi_lots, 0)}</td>
-        <td>${r.delivery_window_from ?? '–'}</td></tr>`).join('') + '</table>';
-  } catch (e) {
-    document.querySelector('main').innerHTML = `<section class="card w12"><h2>Could not load results</h2><p>${e.message}</p></section>`;
-  }
-})();
-</script>
+  <div id="root"></div>
 </body>
 </html>

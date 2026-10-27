@@ -90,9 +90,11 @@ in the holdout.
 - **Flags only when they matter:** a pair is flagged only if it is statistically unusual **and** the executable gap clears the 13 bps cost hurdle. Every card says why it is, or isn't, flagged.
 - The day's premium chart, plus bid, ask, spread, volume and open interest for every leg.
 
-MCX serves its data only to real browsers, so the feed runs from a machine with Microsoft
-Edge (`start_live.bat`) during MCX hours. When no feed is running, the page replays **the
-last real session**, labelled as a replay, never stale or invented numbers.
+MCX serves its data only to real browsers, so the default feed runs from a machine with Microsoft
+Edge (`start_live.bat`) during MCX hours. An optional Angel One SmartAPI WebSocket adapter can
+publish the identical backend snapshot when `LIVE_SOURCE=angelone`; it is monitor-only and has no
+order-placement code. When no feed is running, the page replays **the last real session**, labelled
+as a replay, never stale or invented numbers.
 
 ## 5. How each Track 03 requirement is met
 
@@ -132,6 +134,10 @@ python -m venv .venv
 .venv/Scripts/python -m aura.live                              # optional: live feed (MCX hours)
 .venv/Scripts/python -m pytest -q                              # 17 tests
 ```
+
+To use Angel One as the live data transport, copy `.env.example` to `.env`, add your own SmartAPI
+credentials, set `LIVE_SOURCE=angelone`, and run the same `python -m aura.live` command. The default
+is `LIVE_SOURCE=mcx`, so this addition does not change the existing monitor or dashboard.
 
 Every raw MCX response is cached in `data/raw/`, so results are reproducible and re-runs never
 fetch a day twice.

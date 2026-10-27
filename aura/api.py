@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from aura.config import upstash
 
@@ -107,3 +108,8 @@ def dashboard() -> FileResponse:
 @app.get("/live")
 def live_page() -> FileResponse:
     return FileResponse(ROOT / "public" / "live.html")
+
+
+ASSETS = ROOT / "public" / "assets"
+if ASSETS.exists():
+    app.mount("/assets", StaticFiles(directory=ASSETS), name="assets")
