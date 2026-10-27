@@ -1,12 +1,3 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true,
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "{aura/**,data/results.json,data/last_session.json}"
-    }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" }
-  ]
+  "outputDirectory": "public"
 }
