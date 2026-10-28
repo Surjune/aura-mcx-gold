@@ -12,7 +12,7 @@ export const Footer: React.FC = () => {
               Aurum Relative-value Analytics — An institutional commodity derivatives intelligence
               platform comparing MCX gold futures contracts on a fair, cost-aware, like-for-like basis.
             </p>
-            <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+            <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <span
                 style={{
                   fontSize: '11px',
@@ -40,16 +40,16 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Col 2: Navigation */}
+          {/* Col 2: Navigation Matching Exact 6 Sections */}
           <div className="footer-col">
             <h4>Platform</h4>
             <ul className="footer-nav-list">
               <li><a href="#overview">Overview</a></li>
-              <li><a href="#problem">The Problem</a></li>
-              <li><a href="#how-it-works">How It Works</a></li>
-              <li><a href="#research">Research Results</a></li>
+              <li><a href="#relative-value">Relative Value</a></li>
+              <li><a href="#carry-curve">Carry &amp; Curve</a></li>
+              <li><a href="#backtest-results">Backtest Results</a></li>
               <li><a href="#live">Live Monitor</a></li>
-              <li><a href="#methodology">Methodology &amp; Trust</a></li>
+              <li><a href="#contract-lifecycle">Contract Lifecycle</a></li>
             </ul>
           </div>
 
@@ -67,18 +67,18 @@ export const Footer: React.FC = () => {
                 </a>
               </li>
               <li>
-                <a href="#research">
-                  Backtesting &amp; Holdout Data
+                <a href="#backtest-results">
+                  Walk-Forward Holdout Proof
                 </a>
               </li>
               <li>
-                <a href="#methodology">
-                  Data Hygiene Safeguards
+                <a href="#contract-lifecycle">
+                  7 Core Research Safeguards
                 </a>
               </li>
               <li>
                 <a href="#live">
-                  Top-of-Book Quote Feeds
+                  Top-of-Book Live Quotes
                 </a>
               </li>
             </ul>
@@ -88,11 +88,11 @@ export const Footer: React.FC = () => {
         {/* Bottom Disclaimer */}
         <div className="footer-bottom-disclaimer">
           <div>
-            &copy; {new Date().getFullYear()} AuRA &bull; Developed by Team Lightning Logics (R S Surjune, Abhinandana B, Nithiesh Karthick).
+            &copy; {new Date().getFullYear()} AuRA &bull; Developed by Team Lightning Logics (R S Surjune, Suman N, Nithiesh Karthick).
           </div>
           <div style={{ maxWidth: '640px', textAlign: 'right' }}>
-            <strong>Disclaimer:</strong> AuRA is an academic research prototype for analysing market data.
-            It does not place trades, manage client funds, or provide financial investment advice.
+            <strong>Institutional Disclaimer:</strong> AuRA is an academic research prototype for evaluating market microstructure.
+            It does not execute orders, manage money, or provide investment advice.
           </div>
         </div>
       </div>

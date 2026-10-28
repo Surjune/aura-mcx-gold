@@ -1,7 +1,8 @@
 /**
- * AuRA Light Theme — Plotly Chart Theme Engine
- * Adheres strictly to the 5-color design system: Soft alabaster canvas, pure white card,
- * #E2E8F0 gridlines, #0F172A primary headers, and #2563EB primary accent.
+ * AuRA Archival Index Theme — Plotly Chart Theme Engine
+ * Adheres strictly to the Warm Paper & Carbon design system:
+ * Warm Alabaster (#F7F6F2) canvas, crisp #E2E0D8 hairline grids,
+ * Obsidian (#141413) text, Stone (#6E6D68) metadata, and International Orange (#FF4F00) accents.
  */
 
 declare global {
@@ -26,68 +27,68 @@ export function applyTerminalPlotlyTheme(customLayout: any = {}, options: Termin
   const baseLayout = {
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
-    margin: { l: 56, r: 20, t: 24, b: 36, pad: 4 },
+    margin: { l: 56, r: 16, t: 24, b: 36, pad: 4 },
     font: {
-      family: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      family: '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       size: 11,
-      color: '#64748B',
+      color: '#6E6D68',
     },
     hovermode: options.hovermode ?? 'x unified',
     hoverlabel: {
       bgcolor: '#FFFFFF',
-      bordercolor: '#E2E8F0',
+      bordercolor: '#141413',
       font: {
-        family: 'Inter, -apple-system, sans-serif',
+        family: '"JetBrains Mono", monospace',
         size: 11,
-        color: '#0F172A',
+        color: '#141413',
       },
       namelength: -1,
     },
     xaxis: {
-      color: '#64748B',
-      gridcolor: '#F1F5F9',
+      color: '#6E6D68',
+      gridcolor: '#EAE8E0',
       gridwidth: 1,
-      zerolinecolor: '#E2E8F0',
+      zerolinecolor: '#D8D5CC',
       zerolinewidth: 1,
       tickfont: {
-        family: 'JetBrains Mono, monospace',
+        family: '"JetBrains Mono", monospace',
         size: 10,
-        color: '#64748B',
+        color: '#6E6D68',
       },
-      linecolor: '#E2E8F0',
+      linecolor: '#D8D5CC',
       linewidth: 1,
       showspikes: true,
       spikethickness: 1,
       spikedash: 'dot',
-      spikecolor: '#2563EB',
+      spikecolor: '#141413',
       spikemode: 'across',
-      title: options.xTitle ? { text: options.xTitle, font: { size: 11, color: '#64748B' } } : undefined,
+      title: options.xTitle ? { text: options.xTitle, font: { size: 11, color: '#6E6D68' } } : undefined,
     },
     yaxis: {
-      color: '#64748B',
-      gridcolor: '#F1F5F9',
+      color: '#6E6D68',
+      gridcolor: '#EAE8E0',
       gridwidth: 1,
-      zerolinecolor: '#E2E8F0',
+      zerolinecolor: '#D8D5CC',
       zerolinewidth: 1,
       tickfont: {
-        family: 'JetBrains Mono, monospace',
+        family: '"JetBrains Mono", monospace',
         size: 10,
-        color: '#64748B',
+        color: '#6E6D68',
       },
       ticksuffix: options.yTickSuffix ?? '',
-      linecolor: '#E2E8F0',
+      linecolor: '#D8D5CC',
       linewidth: 1,
-      title: options.yTitle ? { text: options.yTitle, font: { size: 11, color: '#64748B' } } : undefined,
+      title: options.yTitle ? { text: options.yTitle, font: { size: 11, color: '#6E6D68' } } : undefined,
     },
     showlegend: options.showLegend ?? false,
     legend: {
       orientation: options.legendOrientation ?? 'h',
       x: 0,
-      y: 1.14,
+      y: 1.15,
       font: {
-        family: 'Inter, sans-serif',
+        family: '"Plus Jakarta Sans", sans-serif',
         size: 11,
-        color: '#64748B',
+        color: '#6E6D68',
       },
       bgcolor: 'rgba(0,0,0,0)',
     },

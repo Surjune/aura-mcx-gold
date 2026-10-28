@@ -1,104 +1,99 @@
 import React from 'react';
 import { VerdictCard } from '../components/VerdictCard';
+import { useTerminal } from '../store/terminalStore';
 
 export const OverviewSection: React.FC = () => {
+  const { summary } = useTerminal();
+  const hurdleBps = summary?.hurdle_bps ? summary.hurdle_bps.toFixed(1) : '13.1';
+  const sessionsCount = summary?.data?.sessions ? `${summary.data.sessions} Sessions` : '716 Sessions';
+
   const scrollTo = (id: string) => {
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+      window.history.replaceState(null, '', `#${id}`);
+    }
   };
 
   return (
-    <section id="overview" className="story-section" style={{ paddingTop: '48px', paddingBottom: '64px' }}>
+    <section id="overview" className="story-section overview-hero-section">
       <div className="section-inner">
         <div className="hero-grid">
-          {/* Left Column: Narrative Headline & Actions */}
-          <div>
+          {/* Left Column: Core Question, Plain Explanation, Metrics & CTAs */}
+          <div className="hero-left-content">
             <div className="section-eyebrow">Institutional Derivatives Intelligence</div>
             <h1 className="hero-headline">
               Are MCX gold price gaps actually tradable?
             </h1>
             <p className="hero-subheading">
-              AuRA compares MCX gold futures on a fair, like-for-like basis, then tests whether
-              an apparent price gap survives purity, expiry timing, transaction fees, slippage, and liquidity constraints.
+              AuRA compares MCX&apos;s four gold futures contracts on a fair, like-for-like basis.
+              It eliminates the illusions created by differing quote units, metal purity, and delivery dates,
+              then tests whether apparent price gaps survive real-world exchange fees, slippage, and holdout validation.
             </p>
 
+            {/* Exactly Two CTAs */}
             <div className="hero-actions">
               <a
-                href="#research"
-                onClick={(e) => { e.preventDefault(); scrollTo('research'); }}
+                href="#relative-value"
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollTo('relative-value');
+                }}
                 className="btn-hero-primary"
               >
-                Explore Research Results &rarr;
+                Explore Analysis &rarr;
               </a>
               <a
                 href="#live"
-                onClick={(e) => { e.preventDefault(); scrollTo('live'); }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollTo('live');
+                }}
                 className="btn-hero-secondary"
               >
                 Open Live Monitor
               </a>
             </div>
-
-            {/* Quick Context Stats */}
-            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', paddingTop: '20px' }}>
-              <div>
-                <div className="font-mono" style={{ fontSize: '20px', fontWeight: 800, color: 'var(--brand-navy)' }}>
-                  4 Contracts
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  GOLDM, GOLDTEN, GUINEA, PETAL
-                </div>
-              </div>
-              <div style={{ borderLeft: '1px solid var(--border-subtle)', paddingLeft: '24px' }}>
-                <div className="font-mono" style={{ fontSize: '20px', fontWeight: 800, color: 'var(--brand-navy)' }}>
-                  13.1 bps
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Round-trip cost hurdle
-                </div>
-              </div>
-              <div style={{ borderLeft: '1px solid var(--border-subtle)', paddingLeft: '24px' }}>
-                <div className="font-mono" style={{ fontSize: '20px', fontWeight: 800, color: 'var(--brand-navy)' }}>
-                  716 Sessions
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Historical DuckDB database
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Right Column: Prominent Verdict Card */}
-          <div>
+          <div className="hero-right-card">
             <VerdictCard />
           </div>
         </div>
 
-        {/* Why this matters callout */}
+        {/* Full-Width Stat Cards Row */}
+        <div className="proof-metrics-grid">
+          <div className="proof-metric-card">
+            <div className="font-mono metric-num">4 Contracts</div>
+            <div className="metric-desc">GOLDM, GOLDTEN, GUINEA, PETAL</div>
+          </div>
+          <div className="proof-metric-card">
+            <div className="font-mono metric-num">{hurdleBps} bps</div>
+            <div className="metric-desc">Round-trip break-even cost hurdle</div>
+          </div>
+          <div className="proof-metric-card">
+            <div className="font-mono metric-num">{sessionsCount}</div>
+            <div className="metric-desc">Real MCX bhavcopy records in DuckDB</div>
+          </div>
+        </div>
+
+        {/* Simple "Why This Matters" Explanation */}
         <div className="why-matters-box">
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--accent-gold-bg)',
-              color: 'var(--accent-gold)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              fontWeight: 700,
-            }}
-          >
-            !
+          <div className="why-matters-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
           </div>
           <div>
-            <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--brand-navy)', marginBottom: '4px' }}>
-              Why this matters
-            </h4>
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Four MCX gold contracts represent the same underlying metal, but their raw prices differ for legitimate reasons.
-              AuRA prevents traders from mistaking these normal contract differences for arbitrage.
+            <h4 className="why-matters-title">Why this matters for commodity market participants</h4>
+            <p className="why-matters-text">
+              Four MCX gold contracts represent the exact same physical gold, but trade at different screen prices for legitimate structural reasons:
+              different quote weights (1g to 10g), different purity (995 vs 999), and different delivery timing.
+              Naive price comparisons lure retail traders into paying for phantom arbitrage.
+              AuRA protects capital by demonstrating where the market is efficiently priced after real costs.
             </p>
           </div>
         </div>

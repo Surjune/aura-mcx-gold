@@ -2,11 +2,11 @@ import React, { useEffect } from 'react';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { OverviewSection } from './sections/OverviewSection';
-import { ProblemSection } from './sections/ProblemSection';
-import { HowItWorksSection } from './sections/HowItWorksSection';
-import { ResearchSection } from './sections/ResearchSection';
+import { RelativeValueSection } from './sections/RelativeValueSection';
+import { CarryCurveSection } from './sections/CarryCurveSection';
+import { BacktestResultsSection } from './sections/BacktestResultsSection';
 import { LiveMonitorSection } from './sections/LiveMonitorSection';
-import { MethodologySection } from './sections/MethodologySection';
+import { ContractLifecycleSection } from './sections/ContractLifecycleSection';
 import { useTerminal } from './store/terminalStore';
 
 export const App: React.FC = () => {
@@ -15,7 +15,8 @@ export const App: React.FC = () => {
   // Route awareness: auto-scroll to #live if navigated via /live or #live
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      if (window.location.pathname.includes('/live') || window.location.hash === '#live') {
+      const isLivePath = window.location.pathname.includes('/live') || window.location.hash === '#live';
+      if (isLivePath) {
         const el = document.getElementById('live');
         if (el) {
           setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 150);
@@ -25,17 +26,17 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-canvas)' }}>
-      {/* 1. Clean Sticky Header */}
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh', backgroundColor: 'var(--bg-canvas)' }}>
+      {/* 1. Sticky Top Navigation */}
       <Header />
 
-      {/* Global User-Friendly Error Alert */}
+      {/* Global Connection / Offline Notice */}
       {error && (
         <div
           style={{
             padding: '12px 24px',
-            backgroundColor: '#FEF2F2',
-            borderBottom: '1px solid #FCA5A5',
+            backgroundColor: 'var(--semantic-crimson-bg)',
+            borderBottom: '1px solid var(--semantic-crimson-border)',
             color: 'var(--semantic-crimson)',
             fontSize: '14px',
             fontFamily: 'var(--font-sans)',
@@ -45,14 +46,14 @@ export const App: React.FC = () => {
           }}
         >
           <span>
-            <strong>Connection Notice:</strong> We could not load the latest data. Please try refreshing the dashboard.
+            <strong>Connection Notice:</strong> Unable to connect to the live poller feed. Replaying verified session archive.
           </span>
           <button
             onClick={() => refreshAll()}
             style={{
               padding: '4px 12px',
               backgroundColor: '#FFFFFF',
-              border: '1px solid #FCA5A5',
+              border: '1px solid var(--semantic-crimson-border)',
               borderRadius: '4px',
               color: 'var(--semantic-crimson)',
               fontSize: '12px',
@@ -65,13 +66,13 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Global Loading Indicator */}
+      {/* Global Loading Bar */}
       {isLoading && (
         <div
           style={{
-            padding: '10px 24px',
+            padding: '8px 24px',
             backgroundColor: 'var(--accent-gold-bg)',
-            fontSize: '13px',
+            fontSize: '12px',
             color: 'var(--brand-navy)',
             fontFamily: 'var(--font-sans)',
             borderBottom: '1px solid var(--accent-gold-border)',
@@ -90,32 +91,32 @@ export const App: React.FC = () => {
               display: 'inline-block',
             }}
           />
-          Loading AuRA research data and live quotes...
+          Updating AuRA research models and quote feeds...
         </div>
       )}
 
-      {/* Main Guided Story Stream (Pages 1 to 6) */}
-      <main style={{ flex: 1 }}>
-        {/* Page 1: Overview & Research Verdict */}
+      {/* Main Guided Story Stream (Exact 6-Section Hierarchy) */}
+      <main style={{ flex: 1, width: '100%' }}>
+        {/* 1. Overview */}
         <OverviewSection />
 
-        {/* Page 2: The Problem (4 Contracts & False Arbitrage Trap) */}
-        <ProblemSection />
+        {/* 2. Relative Value */}
+        <RelativeValueSection />
 
-        {/* Page 3: How AuRA Works (4-Step Normalisation & Whole-Lot Calculator) */}
-        <HowItWorksSection />
+        {/* 3. Carry & Curve */}
+        <CarryCurveSection />
 
-        {/* Page 4: Research Results (Proof, Key Metrics, Charts & Backtest Outlier) */}
-        <ResearchSection />
+        {/* 4. Backtest Results */}
+        <BacktestResultsSection />
 
-        {/* Page 5: Live Monitor (Quotes, Real Spread Monitor, Depth Simulation) */}
+        {/* 5. Live Monitor */}
         <LiveMonitorSection />
 
-        {/* Page 6: Methodology and Trust (7 Safeguards & Discrete Lifecycle Gates) */}
-        <MethodologySection />
+        {/* 6. Contract Lifecycle */}
+        <ContractLifecycleSection />
       </main>
 
-      {/* Page 7: Footer */}
+      {/* Footer */}
       <Footer />
     </div>
   );

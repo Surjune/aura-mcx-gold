@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { SectionHeading } from '../components/SectionHeading';
 import { PlotlyTerminalChart } from '../components/PlotlyTerminalChart';
+import { LiveOrderBookLadder } from '../components/LiveOrderBookLadder';
 import { useTerminal } from '../store/terminalStore';
 
 export const LiveMonitorSection: React.FC = () => {
-  const { live, summary, refreshAll, isLoading, slippageLots, setSlippageLots } = useTerminal();
-  const [showDepthSimulation, setShowDepthSimulation] = useState(false);
+  const { live, summary, refreshAll, isLoading } = useTerminal();
+  const [showDepthLadder, setShowDepthLadder] = useState(false);
 
   const snapshot = live?.snapshot;
   const contracts = snapshot?.contracts ?? [];
@@ -14,15 +15,41 @@ export const LiveMonitorSection: React.FC = () => {
   const hurdle = summary?.hurdle_bps ?? 13.0762;
 
   const isMarketOpen = snapshot?.market_open ?? false;
+  const status = live?.status ?? (isMarketOpen ? 'live' : 'closed');
   const sourceLabel = live?.source ? `Source: ${live.source}` : 'Session Archive';
   const polledTime = snapshot?.polled_ist ?? 'Recently updated';
 
-  // Check overall decision
+  // Overall system decision
   const hasFlaggedPair = pairs.some((p) => p.status === 'flagged');
-  const mainDecision = hasFlaggedPair ? 'Review Required' : 'No Actionable Opportunity';
+  const hasWatchPair = pairs.some((p) => p.status === 'watch');
+
+  let overallStatusTag = 'NORMAL';
+  let overallStatusBadgeClass = 'normal-state';
+  if (!isMarketOpen) {
+    overallStatusTag = 'MARKET CLOSED';
+    overallStatusBadgeClass = 'closed-state';
+  } else if (status === 'delayed' || status === 'replay') {
+    overallStatusTag = 'ARCHIVE REPLAY';
+    overallStatusBadgeClass = 'watch-state';
+  } else if (hasFlaggedPair) {
+    overallStatusTag = 'FLAGGED';
+    overallStatusBadgeClass = 'flagged-state';
+  } else if (hasWatchPair) {
+    overallStatusTag = 'WATCH';
+    overallStatusBadgeClass = 'watch-state';
+  }
+
+  const mainDecision = hasFlaggedPair
+    ? 'Statistical Dislocation Detected (Review Advised)'
+    : !isMarketOpen
+    ? 'MCX Session Closed (Replaying Last Real Session)'
+    : 'No Actionable Opportunity (Normal Noise)';
+
   const mainReason = hasFlaggedPair
-    ? 'A contract pair cleared both statistical divergence and the 13.1 bps cost hurdle. Manual review advised.'
-    : 'Current screen premiums do not exceed the estimated 13.1 bps round-trip transaction and execution hurdle.';
+    ? 'A contract pair cleared both statistical divergence and the 13.1 bps cost hurdle after crossing the spread. Evaluator review advised.'
+    : !isMarketOpen
+    ? 'MCX trading session is currently closed. Showing verified snapshot from the last trading day. No trades are suggested.'
+    : 'Current screen premiums do not exceed the estimated 13.1 bps round-trip transaction, tax, and bid-ask execution hurdle.';
 
   // Intraday Premium Chart
   const tickChartData = useMemo(() => {
@@ -55,20 +82,54 @@ export const LiveMonitorSection: React.FC = () => {
         y: ticks.map((t) => t.e0),
         type: 'scatter',
         mode: 'lines',
-        name: 'Executable Sell Net Gap (bps)',
+        name: 'Executable Sell Gap (bps)',
         line: { color: '#DC2626', width: 1.2, dash: 'dot' },
       },
+      {
+        x: [times[0], times[times.length - 1]],
+        y: [hurdle, hurdle],
+        type: 'scatter',
+        mode: 'lines',
+        name: `13.1 bps Hurdle`,
+        line: { color: '#DC2626', width: 1.5, dash: 'dash' },
+      },
     ];
-  }, [ticks]);
+  }, [ticks, hurdle]);
 
   return (
     <section id="live" className="story-section">
       <div className="section-inner">
         <SectionHeading
-          eyebrow="Real-Time MCX Feed"
+          eyebrow="Real-Time MCX Quote Feed"
           title="Live MCX Gold Contract Monitor"
-          description="AuRA monitors live quotes to determine whether any intraday price difference remains economically meaningful after estimated trading costs."
+          description="AuRA monitors live quote streams and 5-level order books every 15 seconds to determine whether any intraday price difference remains profitable after estimated exchange fees, stamp duty, CTT, and bid-ask slippage."
         />
+
+        {/* Clear Institutional Disclaimer Note */}
+        <div
+          style={{
+            padding: '12px 18px',
+            backgroundColor: 'var(--bg-surface-subtle)',
+            borderLeft: '4px solid var(--brand-navy)',
+            borderRadius: '4px',
+            fontSize: '13px',
+            color: 'var(--text-secondary)',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <span>
+            <strong>Monitor-Only Intelligence:</strong> AuRA does not place trades, submit orders, or manage money.
+            It evaluates live market depth to filter out false arbitrage opportunities.
+          </span>
+          <span className="live-pill font-mono" style={{ fontSize: '11px' }}>
+            Poll Interval: 15s
+          </span>
+        </div>
 
         {/* Top Control & Telemetry Banner */}
         <div className="live-top-banner">
@@ -94,46 +155,42 @@ export const LiveMonitorSection: React.FC = () => {
               {sourceLabel}
             </span>
 
-            <span
-              style={{
-                fontSize: '12px',
-                color: 'var(--text-muted)',
-                fontStyle: 'italic',
-              }}
-            >
-              Monitor only — no trades are placed
+            <span className={`live-pill ${overallStatusBadgeClass}`}>
+              State: {overallStatusTag}
             </span>
           </div>
 
           <button
             onClick={() => refreshAll()}
-            className="btn-primary"
+            className="btn-hero-secondary"
+            style={{ height: '38px', padding: '0 16px', fontSize: '13px' }}
             disabled={isLoading}
           >
-            <span>{isLoading ? 'Refreshing...' : 'Refresh Quotes'}</span>
+            <span>{isLoading ? 'Polling Feed...' : 'Refresh Quotes'}</span>
           </button>
         </div>
 
         {/* Main Decision Card */}
         <div
           style={{
-            backgroundColor: hasFlaggedPair ? 'var(--semantic-crimson-bg)' : 'var(--bg-surface-subtle)',
+            backgroundColor: hasFlaggedPair ? 'var(--semantic-crimson-bg)' : '#FFFFFF',
             border: `1px solid ${hasFlaggedPair ? 'var(--semantic-crimson-border)' : 'var(--border-subtle)'}`,
             borderRadius: 'var(--radius-lg)',
-            padding: '28px',
+            padding: '24px',
             marginBottom: '32px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '16px',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
           <div>
             <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: hasFlaggedPair ? 'var(--semantic-crimson)' : 'var(--text-muted)' }}>
-              Execution Decision
+              Current Gate Decision
             </div>
-            <h3 style={{ fontSize: '24px', fontWeight: 800, color: hasFlaggedPair ? 'var(--semantic-crimson)' : 'var(--brand-navy)', marginTop: '4px' }}>
+            <h3 style={{ fontSize: '22px', fontWeight: 800, color: hasFlaggedPair ? 'var(--semantic-crimson)' : 'var(--brand-navy)', marginTop: '4px' }}>
               {mainDecision}
             </h3>
             <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '6px', maxWidth: '720px' }}>
@@ -144,27 +201,27 @@ export const LiveMonitorSection: React.FC = () => {
           <div
             style={{
               padding: '12px 20px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface-subtle)',
               borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border-subtle)',
               textAlign: 'right',
             }}
           >
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Active Cost Hurdle
             </div>
-            <div className="font-mono" style={{ fontSize: '20px', fontWeight: 800, color: 'var(--brand-navy)' }}>
+            <div className="font-mono" style={{ fontSize: '22px', fontWeight: 800, color: 'var(--brand-navy)' }}>
               {hurdle.toFixed(1)} bps
             </div>
           </div>
         </div>
 
-        {/* 1. Contract Quote Cards */}
-        <div style={{ marginBottom: '16px' }}>
-          <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--brand-navy)', marginBottom: '12px' }}>
+        {/* 1. Top-of-Book Contract Quotes Grid */}
+        <div style={{ marginBottom: '32px' }}>
+          <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--brand-navy)', marginBottom: '14px' }}>
             Current Top-of-Book Contract Quotes
           </h4>
-          <div className="quote-cards-grid-4">
+          <div className="contracts-grid-4">
             {contracts.length > 0 ? (
               contracts.map((c) => {
                 const spreadVal = c.bid && c.ask ? (c.ask - c.bid).toFixed(1) : '—';
@@ -182,7 +239,7 @@ export const LiveMonitorSection: React.FC = () => {
                       ₹{c.ltp.toLocaleString()}
                     </div>
 
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
                       Normalised: <strong className="font-mono">₹{c.fine.toFixed(2)}/g</strong>
                     </div>
 
@@ -191,7 +248,7 @@ export const LiveMonitorSection: React.FC = () => {
                       <span>Best Ask: <strong className="font-mono">₹{c.ask ? c.ask.toLocaleString() : '—'}</strong></span>
                     </div>
 
-                    <div className="quote-depth-row">
+                    <div className="quote-depth-row" style={{ marginTop: '6px' }}>
                       <span>Spread: <strong className="font-mono">₹{spreadVal} ({spreadBps})</strong></span>
                       <span>Vol: <strong className="font-mono">{c.volume.toLocaleString()}</strong></span>
                     </div>
@@ -206,21 +263,25 @@ export const LiveMonitorSection: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. Executable Comparison Table */}
-        <div style={{ marginBottom: '32px' }}>
-          <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--brand-navy)', marginBottom: '12px' }}>
-            Executable Relative-Value Comparison
-          </h4>
-          <div className="table-responsive">
-            <table className="terminal-table">
+        {/* 2. Executable Relative-Value Comparison Table */}
+        <div className="terminal-panel-card" style={{ marginBottom: '32px' }}>
+          <div className="panel-header">
+            <div>
+              <h4 className="panel-title">Executable Relative-Value Comparison</h4>
+              <p className="panel-subtitle">Comparing screen premiums against executable spread-crossing bids and asks</p>
+            </div>
+            <span className="panel-badge">Dual-Condition Gate</span>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="terminal-table" style={{ width: '100%' }}>
               <thead>
                 <tr>
                   <th>Contract Pair</th>
-                  <th className="num">Normalised Gap</th>
-                  <th className="num">Est. Cost Hurdle</th>
-                  <th className="num">Net Edge After Costs</th>
-                  <th>System Decision</th>
-                  <th>Analytical Rationale</th>
+                  <th className="num">Screen Premium</th>
+                  <th className="num">Cost Hurdle</th>
+                  <th className="num">Net Executable Gap</th>
+                  <th>Status State</th>
+                  <th>Decision Rationale</th>
                 </tr>
               </thead>
               <tbody>
@@ -228,6 +289,7 @@ export const LiveMonitorSection: React.FC = () => {
                   pairs.map((p, idx) => {
                     const edgeVal = p.exec_gap_bps !== null ? `${p.exec_gap_bps >= 0 ? '+' : ''}${p.exec_gap_bps.toFixed(1)} bps` : 'None';
                     const isFlagged = p.status === 'flagged';
+                    const isWatch = p.status === 'watch';
                     return (
                       <tr key={idx}>
                         <td style={{ fontWeight: 600, color: 'var(--brand-navy)' }}>
@@ -249,8 +311,17 @@ export const LiveMonitorSection: React.FC = () => {
                           {edgeVal}
                         </td>
                         <td>
-                          <span className={`status-badge ${isFlagged ? 'flagged' : 'normal'}`}>
-                            {isFlagged ? 'REVIEW' : 'QUIET'}
+                          <span
+                            className="live-pill"
+                            style={{
+                              backgroundColor: isFlagged ? 'var(--semantic-crimson-bg)' : isWatch ? 'var(--semantic-amber-bg)' : 'var(--bg-surface-subtle)',
+                              color: isFlagged ? 'var(--semantic-crimson)' : isWatch ? 'var(--semantic-amber)' : 'var(--brand-navy)',
+                              border: `1px solid ${isFlagged ? 'var(--semantic-crimson-border)' : isWatch ? 'var(--semantic-amber-border)' : 'var(--border-subtle)'}`,
+                              fontWeight: 700,
+                              fontSize: '11px',
+                            }}
+                          >
+                            {p.status.toUpperCase()}
                           </span>
                         </td>
                         <td style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '420px' }}>
@@ -261,8 +332,8 @@ export const LiveMonitorSection: React.FC = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                      Loading pair classifications...
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                      Loading pair comparison telemetry...
                     </td>
                   </tr>
                 )}
@@ -271,84 +342,45 @@ export const LiveMonitorSection: React.FC = () => {
           </div>
         </div>
 
-        {/* 3. Intraday Premium Chart */}
-        <div className="research-chart-panel">
-          <div className="chart-header-block">
-            <h3 className="chart-title">Intraday 15-second spread ticks monitor</h3>
-            <p className="chart-explanation">
-              Real-time premium movements recorded across 15-second polling intervals during the session.
-            </p>
-          </div>
-          <div className="chart-canvas-wrap">
-            <PlotlyTerminalChart
-              data={tickChartData}
-              options={{ yTitle: 'Premium (bps)', showLegend: true, yTickSuffix: ' bps' }}
-            />
-          </div>
-          <div className="chart-meaning-footer">
-            <strong>Data Disclosure:</strong> Ticks record official top-of-book quotes published by MCX India.
-            Notice how executable bid/ask crossing eliminates apparent screen anomalies.
-          </div>
-        </div>
-
-        {/* 4. Optional Expandable Depth & Slippage Simulator */}
-        <div className="collapsible-wrapper">
-          <button
-            className="collapsible-header-btn"
-            onClick={() => setShowDepthSimulation(!showDepthSimulation)}
-          >
-            <span>Top-of-book depth &amp; illustrative liquidity simulation</span>
-            <span style={{ color: 'var(--action-blue)' }}>{showDepthSimulation ? 'Hide simulation &uarr;' : 'Expand simulation &darr;'}</span>
-          </button>
-
-          {showDepthSimulation && (
-            <div className="collapsible-content">
-              <div style={{ marginBottom: '16px', padding: '12px 16px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                <strong>Data Truth Disclosure:</strong> MCX web feeds deliver live top-of-book Best Bid and Best Ask quotes.
-                The 5-level depth levels below represent an <em>illustrative liquidity simulation</em> based on typical exchange market depth patterns.
+        {/* 3. Intraday Tick Chart & Interactive Order-Book Depth Ladder Toggle */}
+        <div style={{ display: 'grid', gridTemplateColumns: showDepthLadder ? '1fr 1fr' : '1fr', gap: '24px', alignItems: 'start' }}>
+          <div className="terminal-panel-card">
+            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <h4 className="panel-title">Intraday Premium &amp; Executable Spread (15s Ticks)</h4>
+                <p className="panel-subtitle">Tracks intraday premium movements against the 13.1 bps hurdle</p>
               </div>
+              <button
+                onClick={() => setShowDepthLadder(!showDepthLadder)}
+                style={{
+                  padding: '6px 14px',
+                  backgroundColor: showDepthLadder ? 'var(--brand-navy)' : 'var(--bg-surface-subtle)',
+                  color: showDepthLadder ? '#FFFFFF' : 'var(--brand-navy)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {showDepthLadder ? 'Hide 5-Level Depth Ladder' : 'Inspect 5-Level Depth Ladder & Slippage'}
+              </button>
+            </div>
+            <div style={{ height: '320px', padding: '12px' }}>
+              <PlotlyTerminalChart
+                data={tickChartData}
+                options={{
+                  yTitle: 'Premium (bps)',
+                  showLegend: true,
+                  legendOrientation: 'h',
+                }}
+              />
+            </div>
+          </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                <div style={{ width: '220px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    Simulated Order Size (Lots):
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={slippageLots}
-                    onChange={(e) => setSlippageLots(Math.max(1, parseInt(e.target.value || '1', 10)))}
-                    className="terminal-input"
-                    style={{ marginTop: '4px' }}
-                  />
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1 }}>
-                  Tests how price impact scales when sweeping multiple lots beyond the top of the book.
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>BUY SWEEP (LIFTING ASKS)</div>
-                  <div className="font-mono" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--brand-navy)', marginTop: '4px' }}>
-                    Est. Slippage: +{(slippageLots * 0.4).toFixed(1)} bps
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    Impact on large lot sizes increases execution friction above the 13.1 bps hurdle.
-                  </div>
-                </div>
-
-                <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-subtle)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>SELL SWEEP (HITTING BIDS)</div>
-                  <div className="font-mono" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--brand-navy)', marginTop: '4px' }}>
-                    Est. Slippage: +{(slippageLots * 0.4).toFixed(1)} bps
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    Crossing bid liquidity erodes theoretical paper profits on reversion.
-                  </div>
-                </div>
-              </div>
+          {showDepthLadder && (
+            <div>
+              <LiveOrderBookLadder />
             </div>
           )}
         </div>
