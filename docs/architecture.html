@@ -61,7 +61,7 @@
       <section class="lane">
         <span class="lane-tag">Research pipeline</span><span class="lane-note">runs on demand · reproducible from cache</span>
         <div class="row">
-          <div class="node"><div class="ic">1</div><h3>MCX bhavcopy</h3><p>716 sessions, Jan 2024 – Oct 2026, all 4 gold contracts</p></div>
+          <div class="node"><div class="ic">1</div><h3>MCX bhavcopy</h3><p>719 sessions, Jan 2024 – Oct 2026, all 4 gold contracts</p></div>
           <div class="arrow">›</div>
           <div class="node"><div class="ic">2</div><h3>Ingest &amp; validate</h3><p>Playwright + Edge · DD/MM vs MM/DD · holidays · exact expiry IDs</p></div>
           <div class="arrow">›</div>
@@ -75,7 +75,7 @@
         </div>
         <div class="facts">
           <div class="fact"><b>Cost model:</b> exchange + SEBI fees, stamp duty, CTT, GST, brokerage, slippage → <b>13&nbsp;bps</b> break-even</div>
-          <div class="fact"><b>Validation:</b> 9-point grid on development only · bootstrap + deflated Sharpe · <b>17&nbsp;tests</b></div>
+          <div class="fact"><b>Validation:</b> 9-point grid on development only · bootstrap + deflated Sharpe · <b>26&nbsp;tests</b></div>
         </div>
       </section>
 
@@ -84,11 +84,11 @@
         <div class="row">
           <div class="node"><div class="ic">L1</div><h3>MCX quotes</h3><p>last price + 5-level order book for 5 contract legs</p></div>
           <div class="arrow">›</div>
-          <div class="node"><div class="ic">L2</div><h3>Live poller</h3><p>Playwright + Edge · <code>start_live.bat</code></p></div>
+          <div class="node"><div class="ic">L2</div><h3>Live poller</h3><p>Playwright + Edge, or Angel One WebSocket · <code>start_live.bat</code></p></div>
           <div class="arrow">›</div>
           <div class="node"><div class="ic">L3</div><h3>Snapshot &amp; flags</h3><p>executable (bid/ask) premiums · z&#8209;score + cost-hurdle flags</p></div>
           <div class="arrow">›</div>
-          <div class="node store" id="snap"><div class="ic">L4</div><h3>Snapshot store</h3><p>Upstash (optional, real-time) · <code>last_session.json</code> replay, pushed hourly</p></div>
+          <div class="node store" id="snap"><div class="ic">L4</div><h3>Snapshot store</h3><p>Upstash (real-time) · <code>last_session.json</code> replay, pushed hourly</p></div>
         </div>
       </section>
     </div>

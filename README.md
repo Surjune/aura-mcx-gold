@@ -12,9 +12,9 @@ Team **Lightning Logics** · Hack in Hills '26 · Track 03: Commodity Derivative
 
 ## In 30 seconds
 
-- We pulled **716 trading sessions of real MCX data** (Jan 2024 – Oct 2026) for GOLDM, GOLDTEN, GOLDGUINEA and GOLDPETAL.
+- We pulled **719 trading sessions of real MCX data** (Jan 2024 – Oct 2026) for GOLDM, GOLDTEN, GOLDGUINEA and GOLDPETAL.
 - After converting every contract to **₹ per gram of fine gold**, small lots trade at a **standing premium**: GOLDPETAL sits a median **+69 bps** above GOLDTEN for the same delivery date.
-- A walk-forward strategy trading the gaps made money in development, but **lost 1.4 bps per trade after costs on an untouched 6-month holdout**.
+- A walk-forward strategy trading the gaps made money in development, but **lost 2.7 bps per trade after costs on an untouched 6-month holdout**.
 - **Verdict: no persistent edge survives execution costs.** Track 03 explicitly accepts a rigorous no-edge proof as a valid result, and this is one.
 
 ---
@@ -57,28 +57,30 @@ whether the gap is tradeable after real costs.**
 
 ## 3. Results
 
+![AuRA results: the standing small-lot premium against the cost hurdle, and the walk-forward equity curve with the untouched holdout](docs/results.png)
+
 **PETAL vs GOLDTEN, net of every cost**
 
 | | Development (Apr 2025 – Apr 2026) | **Holdout (Apr – Oct 2026, untouched)** |
 |---|---|---|
-| Trades | 14 | **7** |
-| Net bps per trade | +22.1 | **−1.4** |
-| Net bps, excluding the best trade | +7.6 | **−3.7** |
-| Sharpe (annualised) | 0.92 | **−0.45** |
-| Bootstrap p-value | 0.12 | **0.76** |
-| Deflated Sharpe probability | 0.74 | **0.38** |
+| Trades | 15 | **6** |
+| Net bps per trade | +21.1 | **−2.7** |
+| Net bps, excluding the best trade | +7.5 | **−5.7** |
+| Sharpe (annualised) | 0.89 | **−0.05** |
+| Bootstrap p-value | 0.12 | **0.52** |
+| Deflated Sharpe probability | 0.73 | **0.49** |
 
-**Why the development profit was an illusion:** 78% of it came from one exit at the
+**Why the development profit was an illusion:** 76% of it came from one exit at the
 **30 Jan 2026 close**, a gold sell-off day when contracts closed at inconsistent prices nobody
-could actually trade. Without that trade the development edge is +7.6 bps, and on the holdout
+could actually trade. Without that trade the development edge is +7.5 bps, and on the holdout
 it turns negative. GUINEA vs GOLDTEN traded too rarely to judge: 4 trades in development, none
 in the holdout.
 
 **What the data does show**
 
 - **Small lots carry a standing premium, not a mispricing.** PETAL: median +69 bps over GOLDTEN, never below +11 bps. GUINEA: median +51 bps.
-- **The carry trap is real.** GOLDM looks 24.6 bps *cheap* on a naive comparison. After purity it is +15.5 bps, and after carry +6.7 bps (medians over 395 sessions).
-- **Carry vs genuine moves.** The GOLDTEN curve implies about 9.7% a year carry. Mechanical roll-down explains only about 4% of a typical day's price move.
+- **The carry trap is real.** GOLDM looks 24.6 bps *cheap* on a naive comparison. After purity it is +15.5 bps, and after carry +6.5 bps (medians over 398 sessions).
+- **Carry vs genuine moves.** The GOLDTEN curve implies about 9.8% a year carry. Mechanical roll-down explains only about 4% of a typical day's price move.
 - **Contract lifecycle.** A new contract takes a median 58 sessions (PETAL, GUINEA), 68 (GOLDTEN) or 37 (GOLDM) to become the liquid one.
 
 ## 4. Live monitor
@@ -88,7 +90,7 @@ in the holdout.
 
 - **Last-trade and executable premiums.** The executable premium is what you would actually get selling the small lot at the bid and buying GOLDTEN at the ask.
 - **Flags only when they matter:** a pair is flagged only if it is statistically unusual **and** the executable gap clears the 13 bps cost hurdle. Every card says why it is, or isn't, flagged.
-- The day's premium chart, plus bid, ask, spread, volume and open interest for every leg.
+- The day's premium chart, the recorded 5-level depth ladder, plus bid, ask, spread, volume and open interest for every leg.
 
 MCX serves its data only to real browsers, so the default feed runs from a machine with Microsoft
 Edge (`start_live.bat`) during MCX hours. An optional Angel One SmartAPI WebSocket adapter can
@@ -132,7 +134,7 @@ python -m venv .venv
 .venv/Scripts/python -m aura.report                            # run the analysis -> data/results.json
 .venv/Scripts/python -m uvicorn aura.api:app --port 8000       # dashboard at http://localhost:8000
 .venv/Scripts/python -m aura.live                              # optional: live feed (MCX hours)
-.venv/Scripts/python -m pytest -q                              # 17 tests
+.venv/Scripts/python -m pytest -q                              # 26 tests
 ```
 
 To use Angel One as the live data transport, copy `.env.example` to `.env`, add your own SmartAPI
@@ -154,7 +156,7 @@ tests/       units, date parsing, costs, no look-ahead, live flag rules, API fal
 
 - **Backtest fills** use the daily close plus assumed slippage; intraday order-book history isn't public. The live monitor does use the real bid/ask.
 - **Brokerage and slippage are assumptions.** Statutory rates should be checked against a broker contract note.
-- **Short history:** GOLDTEN listed in April 2025, so the holdout has only 7 trades. That's why the bootstrap and deflated Sharpe are reported alongside the raw numbers.
+- **Short history:** GOLDTEN listed in April 2025, so the holdout has only 6 trades. That's why the bootstrap and deflated Sharpe are reported alongside the raw numbers.
 - **The live feed needs a machine running the poller.** A production version would use a licensed broker data feed for 24/7 coverage.
 
 ## Team Lightning Logics
