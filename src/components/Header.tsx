@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTerminal } from '../store/terminalStore';
+import { describeFeed } from '../utils/liveFeed';
 
 export const NAV_ITEMS = [
   { id: 'overview', label: 'Overview' },
@@ -14,8 +15,7 @@ export const Header: React.FC = () => {
   const { live } = useTerminal();
   const [activeSection, setActiveSection] = useState('overview');
 
-  const isMarketOpen = live?.snapshot?.market_open ?? false;
-  const statusLabel = isMarketOpen ? 'MCX Open' : 'MCX Closed';
+  const feed = describeFeed(live);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -117,10 +117,10 @@ export const Header: React.FC = () => {
           >
             <span
               className="live-status-pulse"
-              style={{ backgroundColor: isMarketOpen ? 'var(--semantic-emerald)' : '#94A3B8' }}
+              style={{ backgroundColor: feed.dotColor }}
             />
             <span>Open Live Monitor</span>
-            <span className="cta-live-status">({statusLabel})</span>
+            <span className="cta-live-status">({feed.headerLabel})</span>
           </a>
         </div>
       </div>

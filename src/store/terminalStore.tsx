@@ -42,6 +42,8 @@ export interface TerminalContextType {
   live: LiveApiResponse | null;
   isLoading: boolean;
   error: string | null;
+  isRefreshingLive: boolean;
+  liveError: string | null;
 
   // Telemetry Ribbon Derived State
   telemetry: {
@@ -57,6 +59,7 @@ export interface TerminalContextType {
 
   // Actions
   refreshAll: () => Promise<void>;
+  refreshLive: () => Promise<void>;
 }
 
 const TerminalContext = createContext<TerminalContextType | null>(null);
@@ -90,6 +93,8 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshingLive, setIsRefreshingLive] = useState<boolean>(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
 
   const setActiveWorkspace = useCallback((id: WorkspaceTabId) => {
     setActiveWorkspaceState(id);
@@ -151,20 +156,33 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     refreshAll();
   }, [refreshAll]);
 
+  const onLiveError = useCallback((err: unknown) => {
+    console.warn('[AuRA Live Poll Warning]', err);
+    setLiveError(err instanceof Error ? err.message : 'Live feed request failed');
+  }, []);
+
+  const onLiveData = useCallback((data: LiveApiResponse) => {
+    setLive(data);
+    setLiveError(null);
+  }, []);
+
+  const refreshLive = useCallback(async () => {
+    setIsRefreshingLive(true);
+    try {
+      onLiveData(await apiClient.getLive());
+    } catch (err: unknown) {
+      onLiveError(err);
+    } finally {
+      setIsRefreshingLive(false);
+    }
+  }, [onLiveData, onLiveError]);
+
   // Live order book 15-second polling subscription
   useEffect(() => {
-    const unsubscribe = apiClient.subscribeLivePolling(
-      (data) => {
-        setLive(data);
-      },
-      (err) => {
-        console.warn('[AuRA Live Poll Warning]', err);
-      },
-      15000
-    );
+    const unsubscribe = apiClient.subscribeLivePolling(onLiveData, onLiveError, 15000);
 
     return () => unsubscribe();
-  }, []);
+  }, [onLiveData, onLiveError]);
 
   // Compute live telemetry for the Tier-1 ribbon
   const telemetry = useMemo(() => {
@@ -194,7 +212,7 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       // Check if any pair triggered flagged status
       const hasFlagged = live.snapshot.pairs.some(p => p.status === 'flagged');
-      if (hasFlagged) signalGateStatus = 'ALERT';
+      if (hasFlagged && isPollerActive) signalGateStatus = 'ALERT';
     } else if (series) {
       const n = series.session.length;
       if (n > 0) {
@@ -236,8 +254,11 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         live,
         isLoading,
         error,
+        isRefreshingLive,
+        liveError,
         telemetry,
         refreshAll,
+        refreshLive,
       }}
     >
       {children}

@@ -3,62 +3,62 @@ import { SectionHeading } from '../components/SectionHeading';
 import { PlotlyTerminalChart } from '../components/PlotlyTerminalChart';
 import { LiveOrderBookLadder } from '../components/LiveOrderBookLadder';
 import { useTerminal } from '../store/terminalStore';
+import { describeFeed, formatAge, formatIstTime, signedBps, sourceLabel } from '../utils/liveFeed';
 
 export const LiveMonitorSection: React.FC = () => {
-  const { live, summary, refreshAll, isLoading } = useTerminal();
+  const { live, summary, refreshLive, isRefreshingLive, liveError } = useTerminal();
   const [showDepthLadder, setShowDepthLadder] = useState(false);
 
   const snapshot = live?.snapshot;
   const contracts = snapshot?.contracts ?? [];
   const pairs = snapshot?.pairs ?? [];
   const ticks = live?.ticks ?? [];
-  const hurdle = summary?.hurdle_bps ?? 13.0762;
+  const hurdle = snapshot?.hurdle_bps ?? summary?.hurdle_bps ?? 13.0762;
+  const hurdleLabel = `${hurdle.toFixed(1)} bps`;
+  const pollSeconds = snapshot?.poll_s ?? 15;
 
-  const isMarketOpen = snapshot?.market_open ?? false;
-  const status = live?.status ?? (isMarketOpen ? 'live' : 'closed');
-  const sourceLabel = live?.source ? `Source: ${live.source}` : 'Session Archive';
-  const polledTime = snapshot?.polled_ist ?? 'Recently updated';
+  const feed = describeFeed(live);
+  const age = formatAge(live?.age_s);
+  const polledTime = snapshot?.polled_ist ? `${snapshot.polled_ist} IST` : '—';
 
-  // Overall system decision
-  const hasFlaggedPair = pairs.some((p) => p.status === 'flagged');
-  const hasWatchPair = pairs.some((p) => p.status === 'watch');
+  // Pair flags only mean something on a live feed; on a replay they describe a past session.
+  const hasFlaggedPair = feed.isLive && pairs.some((p) => p.status === 'flagged');
+  const hasWatchPair = feed.isLive && pairs.some((p) => p.status === 'watch');
 
-  let overallStatusTag = 'NORMAL';
-  let overallStatusBadgeClass = 'normal-state';
-  if (!isMarketOpen) {
-    overallStatusTag = 'MARKET CLOSED';
-    overallStatusBadgeClass = 'closed-state';
-  } else if (status === 'delayed' || status === 'replay') {
-    overallStatusTag = 'ARCHIVE REPLAY';
-    overallStatusBadgeClass = 'watch-state';
-  } else if (hasFlaggedPair) {
+  let overallStatusTag = feed.stateTag;
+  let overallStatusBadgeClass: string = feed.pillClass;
+  if (hasFlaggedPair) {
     overallStatusTag = 'FLAGGED';
     overallStatusBadgeClass = 'flagged-state';
   } else if (hasWatchPair) {
     overallStatusTag = 'WATCH';
     overallStatusBadgeClass = 'watch-state';
+  } else if (feed.isLive) {
+    overallStatusTag = 'NORMAL';
   }
 
-  const mainDecision = hasFlaggedPair
-    ? 'Statistical Dislocation Detected (Review Advised)'
-    : !isMarketOpen
-    ? 'MCX Session Closed (Replaying Last Real Session)'
-    : 'No Actionable Opportunity (Normal Noise)';
-
-  const mainReason = hasFlaggedPair
-    ? 'A contract pair cleared both statistical divergence and the 13.1 bps cost hurdle after crossing the spread. Evaluator review advised.'
-    : !isMarketOpen
-    ? 'MCX trading session is currently closed. Showing verified snapshot from the last trading day. No trades are suggested.'
-    : 'Current screen premiums do not exceed the estimated 13.1 bps round-trip transaction, tax, and bid-ask execution hurdle.';
+  const decisions: Record<typeof feed.state, [string, string]> = {
+    live: hasFlaggedPair
+      ? ['Statistical Dislocation Detected (Review Advised)',
+         `A contract pair cleared both statistical divergence and the ${hurdleLabel} cost hurdle after crossing the spread. Evaluator review advised.`]
+      : ['No Actionable Opportunity (Normal Noise)',
+         `Current screen premiums do not exceed the estimated ${hurdleLabel} round-trip transaction, tax, and bid-ask execution hurdle.`],
+    closed: ['MCX Session Closed',
+             `The poller is running but MCX is not trading. Showing the last snapshot, recorded at ${polledTime}. No trades are suggested.`],
+    delayed: ['Live Feed Delayed',
+              `The last update arrived ${age ?? 'a while ago'}. Readings may be out of date, so no decision is made until the feed catches up.`],
+    replay: ['Not Live: Replaying the Last Real Session',
+             `No live poller is publishing right now. The quotes below were recorded at ${polledTime}${age ? ` (${age})` : ''} and are shown for reference only. No current decision is made.`],
+    offline: ['Live Feed Offline', 'No live or archived MCX snapshot is available right now.'],
+    loading: ['Connecting to the Live Feed', 'Fetching the latest MCX snapshot...'],
+  };
+  const [mainDecision, mainReason] = decisions[feed.state];
 
   // Intraday Premium Chart
   const tickChartData = useMemo(() => {
     if (!ticks || ticks.length === 0) return [];
 
-    const times = ticks.map((t) => {
-      const d = new Date(t.t * 1000);
-      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-    });
+    const times = ticks.map((t) => formatIstTime(t.t));
 
     return [
       {
@@ -90,7 +90,7 @@ export const LiveMonitorSection: React.FC = () => {
         y: [hurdle, hurdle],
         type: 'scatter',
         mode: 'lines',
-        name: `13.1 bps Hurdle`,
+        name: `${hurdle.toFixed(1)} bps Hurdle`,
         line: { color: '#DC2626', width: 1.5, dash: 'dash' },
       },
     ];
@@ -127,46 +127,53 @@ export const LiveMonitorSection: React.FC = () => {
             It evaluates live market depth to filter out false arbitrage opportunities.
           </span>
           <span className="live-pill font-mono" style={{ fontSize: '11px' }}>
-            Poll Interval: 15s
+            Poll Interval: {pollSeconds}s
           </span>
         </div>
 
         {/* Top Control & Telemetry Banner */}
         <div className="live-top-banner">
           <div className="live-status-pills">
-            <span className={`live-pill ${isMarketOpen ? 'market-state' : 'closed-state'}`}>
+            <span className={`live-pill ${feed.pillClass}`}>
               <span
                 style={{
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  backgroundColor: isMarketOpen ? 'var(--semantic-emerald)' : '#94A3B8',
+                  backgroundColor: feed.dotColor,
                   display: 'inline-block',
                 }}
               />
-              {isMarketOpen ? 'MCX Market Open' : 'MCX Market Closed'}
+              {feed.marketLabel}
             </span>
 
             <span className="live-pill font-mono">
-              Last Poll: {polledTime} IST
+              {feed.isLive ? 'Last Poll' : 'Recorded'}: {polledTime}
+              {age && !feed.isLive ? ` · ${age}` : ''}
             </span>
 
-            <span className="live-pill" style={{ textTransform: 'capitalize' }}>
-              {sourceLabel}
+            <span className="live-pill">
+              Source: {sourceLabel(live?.source ?? null)}
             </span>
 
             <span className={`live-pill ${overallStatusBadgeClass}`}>
               State: {overallStatusTag}
             </span>
+
+            {liveError && (
+              <span className="live-pill flagged-state" title={liveError}>
+                Feed request failed, retrying every 15s
+              </span>
+            )}
           </div>
 
           <button
-            onClick={() => refreshAll()}
+            onClick={() => refreshLive()}
             className="btn-hero-secondary"
             style={{ height: '38px', padding: '0 16px', fontSize: '13px' }}
-            disabled={isLoading}
+            disabled={isRefreshingLive}
           >
-            <span>{isLoading ? 'Polling Feed...' : 'Refresh Quotes'}</span>
+            <span>{isRefreshingLive ? 'Polling Feed...' : 'Refresh Quotes'}</span>
           </button>
         </div>
 
@@ -287,7 +294,7 @@ export const LiveMonitorSection: React.FC = () => {
               <tbody>
                 {pairs.length > 0 ? (
                   pairs.map((p, idx) => {
-                    const edgeVal = p.exec_gap_bps !== null ? `${p.exec_gap_bps >= 0 ? '+' : ''}${p.exec_gap_bps.toFixed(1)} bps` : 'None';
+                    const edgeVal = p.exec_gap_bps !== null ? signedBps(p.exec_gap_bps) : 'None';
                     const isFlagged = p.status === 'flagged';
                     const isWatch = p.status === 'watch';
                     return (
@@ -296,7 +303,7 @@ export const LiveMonitorSection: React.FC = () => {
                           {p.pair}
                         </td>
                         <td className="num font-mono">
-                          +{p.premium_bps.toFixed(1)} bps
+                          {signedBps(p.premium_bps)}
                         </td>
                         <td className="num font-mono">
                           {hurdle.toFixed(1)} bps
@@ -347,8 +354,8 @@ export const LiveMonitorSection: React.FC = () => {
           <div className="terminal-panel-card">
             <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div>
-                <h4 className="panel-title">Intraday Premium &amp; Executable Spread (15s Ticks)</h4>
-                <p className="panel-subtitle">Tracks intraday premium movements against the 13.1 bps hurdle</p>
+                <h4 className="panel-title">Intraday Premium &amp; Executable Spread ({pollSeconds}s Ticks, IST)</h4>
+                <p className="panel-subtitle">Tracks intraday premium movements against the {hurdleLabel} hurdle</p>
               </div>
               <button
                 onClick={() => setShowDepthLadder(!showDepthLadder)}
