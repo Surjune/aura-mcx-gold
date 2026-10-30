@@ -1,11 +1,13 @@
 import React from 'react';
 import { VerdictCard } from '../components/VerdictCard';
 import { useTerminal } from '../store/terminalStore';
+import { count, monthRange, num } from '../utils/format';
 
 export const OverviewSection: React.FC = () => {
   const { summary } = useTerminal();
-  const hurdleBps = summary?.hurdle_bps ? summary.hurdle_bps.toFixed(1) : '13.1';
-  const sessionsCount = summary?.data?.sessions ? `${summary.data.sessions} Sessions` : '716 Sessions';
+  const hurdleBps = num(summary?.hurdle_bps);
+  const sessionsCount = count(summary?.data?.sessions, 'Sessions');
+  const sessionsRange = monthRange(summary?.data?.from, summary?.data?.to);
 
   const scrollTo = (id: string) => {
     const el = document.getElementById(id);
@@ -74,7 +76,7 @@ export const OverviewSection: React.FC = () => {
           </div>
           <div className="proof-metric-card">
             <div className="font-mono metric-num">{sessionsCount}</div>
-            <div className="metric-desc">Real MCX bhavcopy records in DuckDB</div>
+            <div className="metric-desc">Real MCX trading sessions analysed ({sessionsRange})</div>
           </div>
         </div>
 

@@ -108,35 +108,24 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, []);
 
-  // Keyboard shortcut listener (Keys 1 - 6)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
-      if (['INPUT', 'SELECT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
-        return;
-      }
-      if (['1', '2', '3', '4', '5', '6'].includes(e.key)) {
-        e.preventDefault();
-        setActiveWorkspace(parseInt(e.key, 10) as WorkspaceTabId);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setActiveWorkspace]);
-
-  // Initial data loading
+  // Research data loading. The live snapshot is fetched by the polling subscription below.
   const refreshAll = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    const failed: string[] = [];
+    const attempt = <T,>(name: string, request: Promise<T>): Promise<T | null> =>
+      request.catch((err: unknown) => {
+        console.warn(`[AuRA API] ${name} failed`, err);
+        failed.push(name);
+        return null;
+      });
     try {
-      const [sumRes, conRes, sigRes, btestRes, serRes, liveRes] = await Promise.all([
-        apiClient.getSummary().catch(e => { console.warn('summary err', e); return null; }),
-        apiClient.getContracts().catch(e => { console.warn('contracts err', e); return null; }),
-        apiClient.getSignals().catch(e => { console.warn('signals err', e); return null; }),
-        apiClient.getBacktest().catch(e => { console.warn('backtest err', e); return null; }),
-        apiClient.getSeries().catch(e => { console.warn('series err', e); return null; }),
-        apiClient.getLive().catch(e => { console.warn('live err', e); return null; }),
+      const [sumRes, conRes, sigRes, btestRes, serRes] = await Promise.all([
+        attempt('summary', apiClient.getSummary()),
+        attempt('contracts', apiClient.getContracts()),
+        attempt('signals', apiClient.getSignals()),
+        attempt('backtest', apiClient.getBacktest()),
+        attempt('series', apiClient.getSeries()),
       ]);
 
       if (sumRes) setSummary(sumRes);
@@ -144,9 +133,7 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (sigRes) setSignals(sigRes);
       if (btestRes) setBacktest(btestRes);
       if (serRes) setSeries(serRes);
-      if (liveRes) setLive(liveRes);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Terminal API Connection Failed');
+      if (failed.length) setError(`Could not load ${failed.join(', ')} from the AuRA API.`);
     } finally {
       setIsLoading(false);
     }

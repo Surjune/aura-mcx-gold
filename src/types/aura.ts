@@ -25,6 +25,15 @@ export interface NormalisedQuote {
   as_on: number;
   spread_bps: number | null;
   fine: number;
+  /** Up to 5 order-book levels; absent on snapshots recorded before depth was captured. */
+  depth?: DepthLevel[];
+}
+
+export interface DepthLevel {
+  bid: number | null;
+  bid_qty: number | null;
+  ask: number | null;
+  ask_qty: number | null;
 }
 
 export interface SpreadSignal {

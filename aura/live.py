@@ -17,6 +17,7 @@ import json
 import os
 import subprocess
 import time
+import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -86,18 +87,28 @@ def history() -> dict:
     return out
 
 
+DEPTH_LEVELS = 5  # MCX and Angel One both publish a 5-level order book
+
+
+def depth_level(bid: float | None, bid_qty: float | None, ask: float | None, ask_qty: float | None) -> dict:
+    """One order-book level; a side with no price or quantity is None, never a guess."""
+    return {"bid": bid or None, "bid_qty": bid_qty or None, "ask": ask or None, "ask_qty": ask_qty or None}
+
+
 def parse_quote(symbol: str, expiry: date, body: str) -> dict:
     j = json.loads(body)
     d = j["Data"][0]
     book = d.get("QuoteBid") or []
     bid = book[0]["BidPrice"] if book and book[0]["BidPrice"] else None
     ask = book[0]["AskPrice"] if book and book[0]["AskPrice"] else None
+    depth = [depth_level(x.get("BidPrice"), x.get("BidVolume"), x.get("AskPrice"), x.get("AskVolume"))
+             for x in book[:DEPTH_LEVELS]]
     as_on = int(j["Summary"]["AsOn"].strip("/").removeprefix("Date(").rstrip(")")) / 1000
     return {"symbol": symbol, "expiry": expiry.isoformat(), "ltp": d["LTP"], "bid": bid, "ask": ask,
             "prev_close": d["PreviousClose"], "change_pct": d["PercentChange"], "volume": d["Volume"],
             "oi": d["OpenInterest"], "as_on": as_on,
             "spread_bps": (ask - bid) / ((ask + bid) / 2) * 1e4 if bid and ask else None,
-            "fine": fine_per_gram(symbol, d["LTP"])}
+            "fine": fine_per_gram(symbol, d["LTP"]), "depth": depth}
 
 
 def bps(a: float, b: float) -> float:
@@ -180,8 +191,13 @@ def publish(snap: dict) -> None:
             ["LTRIM", "aura:ticks", str(-MAX_TICKS), "-1"]]
         req = urllib.request.Request(url.rstrip("/") + "/pipeline", data=json.dumps(cmds).encode(), method="POST",
                                      headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            r.read()
+        # An Upstash outage must not count as an MCX poll failure (which relaunches the browser):
+        # the snapshot is already saved locally and the next poll publishes again.
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                r.read()
+        except (urllib.error.URLError, TimeoutError) as exc:
+            print(datetime.now(IST).strftime("%H:%M:%S"), "Upstash publish failed:", exc, flush=True)
 
 
 def save_session(reason: str) -> None:

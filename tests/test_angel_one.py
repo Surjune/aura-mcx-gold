@@ -47,3 +47,14 @@ def test_quote_from_snap_quote_converts_paise_and_best_bid_ask():
     # GOLDPETAL is 999 purity, so AuRA converts it to grams of fine gold.
     assert quote["fine"] == pytest.approx(14714 / 0.999)
     assert quote["spread_bps"] == pytest.approx(1.359, rel=1e-3)
+
+
+def test_quote_depth_converts_every_level_from_paise():
+    item = Instrument("ten", "GOLDTEN", date(2026, 10, 30), "101")
+    quote = quote_from_tick({
+        "last_traded_price": 14536000,
+        "best_5_buy_data": [{"price": 14535000, "quantity": 7}, {"price": 14534000, "quantity": 3}],
+        "best_5_sell_data": [{"price": 14537000, "quantity": 5}],
+    }, item, 100)
+    assert quote["depth"] == [{"bid": 145350, "bid_qty": 7, "ask": 145370, "ask_qty": 5},
+                              {"bid": 145340, "bid_qty": 3, "ask": None, "ask_qty": None}]

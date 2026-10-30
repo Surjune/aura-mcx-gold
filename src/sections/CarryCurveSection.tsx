@@ -3,11 +3,17 @@ import { SectionHeading } from '../components/SectionHeading';
 import { PlotlyTerminalChart } from '../components/PlotlyTerminalChart';
 import { CarryTrapDecomposer } from '../components/CarryTrapDecomposer';
 import { useTerminal } from '../store/terminalStore';
+import { bps, count, num, pct } from '../utils/format';
 
 export const CarryCurveSection: React.FC = () => {
   const { series, summary } = useTerminal();
   const carry = summary?.carry_pa;
   const roll = summary?.roll_split;
+  const naive = summary?.premiums?.GOLDM_naive?.median;
+  const purity = summary?.premiums?.GOLDM_purity?.median;
+  const carryAdj = summary?.premiums?.GOLDM_carry?.median;
+  const rollShare = roll?.share_abs_move_from_roll;
+  const hurdleLabel = num(summary?.hurdle_bps);
 
   // Chart: GOLDM Carry Decomposition over time
   const carryCurveChartData = useMemo(() => {
@@ -18,7 +24,7 @@ export const CarryCurveSection: React.FC = () => {
         y: series.m_naive,
         type: 'scatter',
         mode: 'lines',
-        name: 'Naive Price Gap (Misleading: -24.6 bps median)',
+        name: `Naive Price Gap (Misleading: ${bps(naive)} median)`,
         line: { color: '#DC2626', width: 1.2, dash: 'dot' },
       },
       {
@@ -26,7 +32,7 @@ export const CarryCurveSection: React.FC = () => {
         y: series.m_purity,
         type: 'scatter',
         mode: 'lines',
-        name: 'Purity Adjusted (995 -> 999: +15.5 bps median)',
+        name: `Purity Adjusted (995 -> 999: ${bps(purity)} median)`,
         line: { color: '#64748B', width: 1.5 },
       },
       {
@@ -34,11 +40,11 @@ export const CarryCurveSection: React.FC = () => {
         y: series.m_carry,
         type: 'scatter',
         mode: 'lines',
-        name: 'Carry & Curve Adjusted (True Residual: +6.5 bps median)',
+        name: `Carry & Curve Adjusted (True Residual: ${bps(carryAdj)} median)`,
         line: { color: '#0F172A', width: 2 },
       },
     ];
-  }, [series]);
+  }, [series, naive, purity, carryAdj]);
 
   return (
     <section id="carry-curve" className="story-section">
@@ -65,18 +71,18 @@ export const CarryCurveSection: React.FC = () => {
             </div>
             <div className="flow-step-arrow">&rarr;</div>
             <div className="flow-step-box">
-              <h4>2. Expected Carry (~9.8% p.a.)</h4>
+              <h4>2. Expected Carry (~{num(carry?.median)}% p.a.)</h4>
               <p>Gold futures trade in contango: holding gold costs financing and storage over time.</p>
             </div>
             <div className="flow-step-arrow">&rarr;</div>
             <div className="flow-step-box highlight">
-              <h4>3. Carry-Adjusted Gap (+6.5 bps)</h4>
-              <p>AuRA reads the GOLDTEN curve at GOLDM&apos;s exact expiry, shrinking the gap from &minus;25 bps to under 7 bps.</p>
+              <h4>3. Carry-Adjusted Gap ({bps(carryAdj)})</h4>
+              <p>AuRA reads the GOLDTEN curve at GOLDM&apos;s exact expiry, moving the median gap from {bps(naive)} to {bps(carryAdj)}.</p>
             </div>
             <div className="flow-step-arrow">&rarr;</div>
             <div className="flow-step-box" style={{ border: '2px solid var(--brand-navy)', backgroundColor: '#FFFFFF' }}>
               <h4>4. Normal Pricing</h4>
-              <p>The remaining residual is within normal bid-ask noise and well below the 13.1 bps execution hurdle.</p>
+              <p>The remaining residual is within normal bid-ask noise and below the {hurdleLabel} bps execution hurdle.</p>
             </div>
           </div>
         </div>
@@ -93,7 +99,7 @@ export const CarryCurveSection: React.FC = () => {
           <div className="proof-metric-card" style={{ textAlign: 'left', padding: '20px' }}>
             <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--semantic-crimson)' }}>NAIVE GAP (RAW QUOTES)</div>
             <div className="font-mono" style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-navy)', margin: '4px 0' }}>
-              &minus;24.6 bps
+              {bps(naive)}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               Appears artificially cheap; ignores that GOLDM is 995 fineness and expires 24 days earlier.
@@ -103,7 +109,7 @@ export const CarryCurveSection: React.FC = () => {
           <div className="proof-metric-card" style={{ textAlign: 'left', padding: '20px' }}>
             <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>AFTER PURITY NORMALISATION</div>
             <div className="font-mono" style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-navy)', margin: '4px 0' }}>
-              +15.5 bps
+              {bps(purity)}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               Correcting for 995 vs 999 fineness flips the sign: GOLDM is actually quoted at a premium.
@@ -113,7 +119,7 @@ export const CarryCurveSection: React.FC = () => {
           <div className="proof-metric-card" style={{ textAlign: 'left', padding: '20px' }}>
             <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--semantic-emerald)' }}>AFTER CARRY ADJUSTMENT</div>
             <div className="font-mono" style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-navy)', margin: '4px 0' }}>
-              +6.5 bps
+              {bps(carryAdj)}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               Adjusting for the GOLDTEN forward curve eliminates the carry trap; fair parity is restored.
@@ -123,26 +129,26 @@ export const CarryCurveSection: React.FC = () => {
           <div className="proof-metric-card" style={{ textAlign: 'left', padding: '20px' }}>
             <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-gold)' }}>MECHANICAL ROLL-DOWN</div>
             <div className="font-mono" style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-navy)', margin: '4px 0' }}>
-              {roll ? `${(roll.share_abs_move_from_roll * 100).toFixed(1)}%` : '3.9%'}
+              {pct(rollShare)}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              96.1% of daily spread move is macroeconomic spot shift; only 3.9% is mechanical curve roll.
+              {pct(rollShare === undefined ? undefined : 1 - rollShare)} of a typical day&apos;s GOLDTEN move is a genuine curve shift; only {pct(rollShare)} is mechanical roll-down.
             </div>
           </div>
         </div>
 
         {/* Chart & Decomposer Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px', alignItems: 'start' }}>
+        <div className="split-grid">
           {/* Left: Plotly Chart of GOLDM Carry Decomposition */}
           <div className="terminal-panel-card">
             <div className="panel-header">
               <div>
                 <h4 className="panel-title">GOLDM vs GOLDTEN: The Carry Trap Deconstructed</h4>
                 <p className="panel-subtitle">
-                  Watch how the naive &minus;25 bps discount vanishes into +6.5 bps after purity and forward curve adjustments
+                  Watch how the naive {bps(naive)} median discount becomes {bps(carryAdj)} after purity and forward curve adjustments
                 </p>
               </div>
-              <span className="panel-badge">398 Sessions</span>
+              <span className="panel-badge">{count(summary?.premiums?.GOLDM_carry?.n, 'Sessions')}</span>
             </div>
             <div style={{ height: '340px', padding: '12px' }}>
               <PlotlyTerminalChart

@@ -109,6 +109,50 @@ def test_repeated_poll_failures_relaunch_the_browser(monkeypatch):
         live.loop(DeadPage(), {}, "")
 
 
+def test_quote_keeps_the_real_order_book_depth():
+    body = json.loads(QUOTE)
+    body["Data"][0]["QuoteBid"].append({"BidPrice": 14712.0, "BidVolume": 25, "AskPrice": 0, "AskVolume": 0})
+    depth = parse_quote("GOLDPETAL", date(2026, 10, 30), json.dumps(body))["depth"]
+    assert depth == [{"bid": 14713.0, "bid_qty": 10, "ask": 14715.0, "ask_qty": 4},
+                     {"bid": 14712.0, "bid_qty": 25, "ask": None, "ask_qty": None}]   # empty side stays empty
+
+
+def test_api_falls_back_to_archive_when_upstash_is_down(tmp_path, monkeypatch):
+    import time
+    import urllib.error
+    from aura import api
+    monkeypatch.setenv("KV_REST_API_URL", "https://example.invalid")
+    monkeypatch.setenv("KV_REST_API_TOKEN", "x")
+    monkeypatch.setattr(api, "LIVE", tmp_path / "missing.json")
+    monkeypatch.setattr(api, "SESSION", tmp_path / "session.json")
+
+    def down(_cmds):
+        raise urllib.error.URLError("connection refused")
+
+    monkeypatch.setattr(api, "_upstash", down)
+    snap = {"published": time.time() - 5, "poll_s": 15, "market_open": True, "pairs": []}
+    (tmp_path / "session.json").write_text(json.dumps({"snapshot": snap, "ticks": []}))
+    out = api.live()
+    assert out["status"] == "replay" and out["source"] == "session archive"
+
+
+def test_upstash_outage_does_not_fail_the_poll(tmp_path, monkeypatch):
+    import urllib.error
+    from aura import live
+    monkeypatch.setattr(live, "LIVE", tmp_path / "live.json")
+    monkeypatch.setattr(live, "TICKS", tmp_path / "ticks.json")
+    monkeypatch.setenv("KV_REST_API_URL", "https://example.invalid")
+    monkeypatch.setenv("KV_REST_API_TOKEN", "x")
+
+    def down(*_a, **_k):
+        raise urllib.error.URLError("connection refused")
+
+    monkeypatch.setattr(live.urllib.request, "urlopen", down)
+    pair = classify("x", 40.0, 39.0, 41.0, HIST, hurdle=13.0, tradeable=True)
+    live.publish({"published": 100.0, "pairs": [pair]})   # must not raise
+    assert json.loads((tmp_path / "live.json").read_text())["published"] == 100.0
+
+
 def test_stale_exchange_stamp_means_not_trading():
     from aura.live import STALE_S, exchange_stale
     now = 1_800_000_000

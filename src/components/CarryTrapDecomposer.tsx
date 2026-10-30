@@ -1,70 +1,44 @@
 import React from 'react';
 import { TerminalPanel } from './TerminalPanel';
 import { useTerminal } from '../store/terminalStore';
+import { bps, count, num, pct } from '../utils/format';
+
+// 999 vs 995 fineness: GOLDM's quote buys 0.5% less fine gold, a fixed (0.999 / 0.995 - 1) = 40.2 bps.
+const PURITY_LIFT_BPS = (0.999 / 0.995 - 1) * 1e4;
 
 export const CarryTrapDecomposer: React.FC = () => {
   const { summary } = useTerminal();
   const carry = summary?.carry_pa;
   const roll = summary?.roll_split;
+  const naive = summary?.premiums?.GOLDM_naive?.median;
+  const carryAdj = summary?.premiums?.GOLDM_carry?.median;
+  const rollShare = roll?.share_abs_move_from_roll;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Term-Structure & Roll-Down Explainer */}
-      <TerminalPanel
-        title="Term Structure & Roll-Down Mechanics"
-        badge="~24-Day Expiry Gap"
-      >
+      <TerminalPanel title="Term Structure & Roll-Down Mechanics" badge="~24-Day Expiry Gap">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div className="terminal-callout cyan" style={{ margin: 0 }}>
-            <div style={{ fontWeight: 600, color: 'var(--accent-primary)', fontSize: '13px' }}>
-              The MCX Contract Expiry Trap
-            </div>
+          <div className="terminal-callout" style={{ margin: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: '13px' }}>The MCX Contract Expiry Trap</div>
             <div style={{ fontSize: '12px', marginTop: '4px', color: 'var(--text-secondary)' }}>
-              A trader observing GOLDM quotes vs GOLDTEN sees an apparent discount of <strong>&minus;25 bps</strong>.
-              However, this apparent arbitrage is an illusion caused by two structural factors:
+              A trader comparing GOLDM quotes with GOLDTEN sees a median apparent discount of <strong>{bps(naive)}</strong>.
+              That apparent arbitrage comes from two structural factors:
             </div>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
-            }}
-          >
-            <div
-              style={{
-                padding: '16px',
-                backgroundColor: 'var(--bg-surface-subtle)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '6px',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                STEP 1: PURITY CONVERSION
-              </div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-                995 &rarr; 999 Fineness
-              </div>
+          <div className="split-grid-even" style={{ gap: '12px' }}>
+            <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: '6px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>STEP 1: PURITY CONVERSION</div>
+              <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '2px' }}>995 &rarr; 999 Fineness</div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                GOLDM delivers 995 fineness, whereas GOLDTEN delivers 999. Purity normalisation lifts the spread by <strong>+40 bps</strong>.
+                GOLDM delivers 995 fineness, whereas GOLDTEN delivers 999. Purity normalisation lifts the spread by{' '}
+                <strong>{bps(PURITY_LIFT_BPS)}</strong>.
               </div>
             </div>
 
-            <div
-              style={{
-                padding: '16px',
-                backgroundColor: 'var(--bg-surface-subtle)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '6px',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                STEP 2: CARRY & ROLL-DOWN
-              </div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--accent-primary)', marginTop: '2px' }}>
-                3rd–5th vs 27th–31st
-              </div>
+            <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: '6px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>STEP 2: CARRY &amp; ROLL-DOWN</div>
+              <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '2px' }}>3rd–5th vs 27th–31st</div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                 GOLDM expires ~24 days earlier than GOLDTEN in the same delivery month. Cost of carry along the curve consumes the difference.
               </div>
@@ -74,34 +48,30 @@ export const CarryTrapDecomposer: React.FC = () => {
           <div
             style={{
               padding: '16px',
-              backgroundColor: 'var(--accent-tint)',
-              border: '1px solid rgba(37, 99, 235, 0.2)',
+              backgroundColor: 'var(--surface-bone)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
             }}
           >
             <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                Net Corrected Position
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-primary)', marginTop: '2px' }}>
-                From <strong>&minus;25 bps</strong> (naive illusion) to:
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>Net Corrected Position (median)</div>
+              <div style={{ fontSize: '13px', marginTop: '2px' }}>
+                From <strong>{bps(naive)}</strong> (naive illusion) to:
               </div>
             </div>
-            <div className="font-mono" style={{ fontSize: '20px', fontWeight: 700, color: 'var(--accent-primary)' }}>
-              +7.1 bps (Fair Parity)
+            <div className="font-mono" style={{ fontSize: '20px', fontWeight: 700 }}>
+              {bps(carryAdj)}
             </div>
           </div>
         </div>
       </TerminalPanel>
 
-      {/* Quantitative Carry Statistics */}
-      <TerminalPanel
-        title="Annualised Carry & Roll-Down Metrics"
-        badge="Empirical Stats"
-      >
+      <TerminalPanel title="Annualised Carry & Roll-Down Metrics" badge="Empirical Stats">
         <div style={{ overflowX: 'auto' }}>
           <table className="terminal-table">
             <thead>
@@ -114,38 +84,28 @@ export const CarryTrapDecomposer: React.FC = () => {
             <tbody>
               <tr>
                 <td style={{ fontWeight: 600 }}>Carry Rate (Median)</td>
-                <td className="num font-mono" style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
-                  {carry ? `${carry.median.toFixed(2)}% p.a.` : '9.77% p.a.'}
-                </td>
+                <td className="num font-mono" style={{ fontWeight: 600 }}>{carry ? `${num(carry.median, 2)}% p.a.` : '\u2014'}</td>
                 <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                   Contango carry rate across GOLDTEN front vs next contract curve
                 </td>
               </tr>
               <tr>
                 <td style={{ fontWeight: 600 }}>Share Positive Carry</td>
-                <td className="num font-mono" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                  {carry ? `${(carry.share_positive * 100).toFixed(1)}%` : '100.0%'}
-                </td>
+                <td className="num font-mono" style={{ fontWeight: 600 }}>{pct(carry?.share_positive)}</td>
                 <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  Gold futures curve maintained contango across all 398 sessions
+                  Sessions where the GOLDTEN curve was in contango, out of {count(carry?.n, 'sessions')}
                 </td>
               </tr>
               <tr>
                 <td style={{ fontWeight: 600 }}>Mean Daily Roll</td>
-                <td className="num font-mono">
-                  {roll ? `${roll.mean_roll_bps.toFixed(2)} bps` : '-4.50 bps'}
-                </td>
-                <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  Daily roll component across the curve
-                </td>
+                <td className="num font-mono">{roll ? `${num(roll.mean_roll_bps, 2)} bps` : '\u2014'}</td>
+                <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Daily roll component across the curve</td>
               </tr>
               <tr>
-                <td style={{ fontWeight: 600 }}>Roll vs Curve Variance</td>
-                <td className="num font-mono">
-                  {roll ? `${(roll.share_abs_move_from_roll * 100).toFixed(1)}%` : '3.9%'}
-                </td>
+                <td style={{ fontWeight: 600 }}>Roll Share of Daily Move</td>
+                <td className="num font-mono">{pct(rollShare)}</td>
                 <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  96.1% of spread variance is macro spot shift; only 3.9% is roll-down
+                  {pct(rollShare === undefined ? undefined : 1 - rollShare)} of the absolute daily move is a genuine curve shift; only {pct(rollShare)} is roll-down
                 </td>
               </tr>
             </tbody>

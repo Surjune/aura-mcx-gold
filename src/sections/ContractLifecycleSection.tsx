@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { SectionHeading } from '../components/SectionHeading';
 import { MethodologyCard } from '../components/MethodologyCard';
 import { useTerminal } from '../store/terminalStore';
+import { monthRange, num } from '../utils/format';
 
 export const ContractLifecycleSection: React.FC = () => {
-  const { contracts } = useTerminal();
+  const { contracts, summary, backtest } = useTerminal();
+  const petal = backtest?.summary?.['GOLDPETAL'];
+  const holdoutFrom = petal?.holdout_from;
   const [selectedSymbol, setSelectedSymbol] = useState<string>('GOLDTEN');
   const [filterQuery, setFilterQuery] = useState<string>('');
 
@@ -19,7 +22,7 @@ export const ContractLifecycleSection: React.FC = () => {
         <SectionHeading
           eyebrow="Contract Timing & Risk Discipline"
           title="Discrete Lifecycle Gates & Delivery Avoidance"
-          description="AuRA never stitches contracts into artificial continuous futures. Each contract is tracked through three distinct lifecycle phases to avoid illiquid trading and physical delivery delivery risks."
+          description="AuRA never stitches contracts into artificial continuous futures. Each contract is tracked through four distinct lifecycle stages to avoid illiquid trading and physical delivery risk."
         />
 
         {/* Horizontal Lifecycle Timeline */}
@@ -212,7 +215,7 @@ export const ContractLifecycleSection: React.FC = () => {
               id={3}
               title="Carry & Term-Structure Adjustment"
               summary="Normal roll-down and delivery timing are separated from a genuine price difference."
-              detailedText="Because gold futures trade in contango (~9.8% annualised carry), contracts expiring 24 days apart naturally trade at different price points along the forward curve. AuRA interpolates along the curve."
+              detailedText={`Because gold futures trade in contango (~${num(summary?.carry_pa?.median)}% annualised carry), contracts expiring 24 days apart naturally trade at different price points along the forward curve. AuRA interpolates along the curve.`}
               codeSnippet="curve_price = ten_fine ** (1 - w) * next_fine ** w"
               riskMitigated="Normal contango term structure being mistaken for an actionable spread."
             />
@@ -228,7 +231,7 @@ export const ContractLifecycleSection: React.FC = () => {
               id={5}
               title="Cost-Aware Testing"
               summary="Fees, slippage, and liquidity gates are included before judging an opportunity."
-              detailedText="AuRA models the complete friction of real trading: brokerage, Commodities Transaction Tax (CTT), exchange turnover fees, GST, SEBI charges, plus crossing the bid-ask spread (13.1 bps round-trip hurdle)."
+              detailedText={`AuRA models the complete friction of real trading: brokerage, Commodities Transaction Tax (CTT), exchange turnover fees, GST, SEBI charges, plus crossing the bid-ask spread (${num(summary?.hurdle_bps)} bps round-trip hurdle).`}
               codeSnippet="hurdle_bps = fees_bps + 2 * half_spread_bps"
               riskMitigated="Paper profits that evaporate once a trader crosses the bid-ask spread."
             />
@@ -236,16 +239,16 @@ export const ContractLifecycleSection: React.FC = () => {
               id={6}
               title="Untouched Out-of-Sample Validation"
               summary="Final results are tested on data the strategy did not use during development."
-              detailedText="Parameter tuning was locked to the development window (Apr 2025 – Apr 2026). The holdout window (Apr 2026 – Oct 2026) was strictly untouched, preventing overfitting and look-ahead bias."
-              codeSnippet="holdout_data = data[data.session >= '2026-04-20']"
+              detailedText={`Parameter tuning was locked to the development window (${monthRange(petal?.development?.from, petal?.development?.to)}). The holdout window (${monthRange(petal?.holdout?.from, petal?.holdout?.to)}) was strictly untouched, preventing overfitting and look-ahead bias.`}
+              codeSnippet={`holdout_data = data[data.session >= '${holdoutFrom ?? 'holdout_from'}']`}
               riskMitigated="Overfitting to historical noise and reporting unrealistic backtest returns."
             />
             <MethodologyCard
               id={7}
               title="Data-Quality & Holiday Echo Checks"
               summary="Holiday, duplicate-date, expiry, and stale-data checks prevent misleading inputs."
-              detailedText="The MCX Bhavcopy API silently returns the prior trading day when queried on a holiday. AuRA asserts that the response date matches the requested date, and strips space-padded symbol strings."
-              codeSnippet="assert response['Date'] == requested_date, 'Silent holiday echo'"
+              detailedText="The MCX Bhavcopy API silently returns the prior trading day when queried on a holiday. AuRA checks that the response date matches the requested date, drops the echoed session, and strips space-padded symbol strings."
+              codeSnippet="if response_date(row['Date']) != requested_date: skip  # silent holiday echo"
               riskMitigated="Duplicate sessions inflating backtest trade sample sizes."
             />
           </div>

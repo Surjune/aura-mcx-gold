@@ -46,7 +46,7 @@ export const App: React.FC = () => {
           }}
         >
           <span>
-            <strong>Connection Notice:</strong> Unable to connect to the live poller feed. Replaying verified session archive.
+            <strong>Connection Notice:</strong> {error} Affected figures are shown as &ldquo;&mdash;&rdquo;.
           </span>
           <button
             onClick={() => refreshAll()}
@@ -61,7 +61,7 @@ export const App: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            Retry Connection
+            Retry
           </button>
         </div>
       )}

@@ -3,7 +3,7 @@ import { SectionHeading } from '../components/SectionHeading';
 import { PlotlyTerminalChart } from '../components/PlotlyTerminalChart';
 import { LiveOrderBookLadder } from '../components/LiveOrderBookLadder';
 import { useTerminal } from '../store/terminalStore';
-import { describeFeed, formatAge, formatIstTime, signedBps, sourceLabel } from '../utils/liveFeed';
+import { describeFeed, formatAge, formatIstDateTime, signedBps, sourceLabel } from '../utils/liveFeed';
 
 export const LiveMonitorSection: React.FC = () => {
   const { live, summary, refreshLive, isRefreshingLive, liveError } = useTerminal();
@@ -13,8 +13,11 @@ export const LiveMonitorSection: React.FC = () => {
   const contracts = snapshot?.contracts ?? [];
   const pairs = snapshot?.pairs ?? [];
   const ticks = live?.ticks ?? [];
-  const hurdle = snapshot?.hurdle_bps ?? summary?.hurdle_bps ?? 13.0762;
-  const hurdleLabel = `${hurdle.toFixed(1)} bps`;
+  const hurdle = snapshot?.hurdle_bps ?? summary?.hurdle_bps;
+  const hurdleLabel = hurdle !== undefined ? `${hurdle.toFixed(1)} bps` : '—';
+  // GOLDPETAL is flagged "rich" once its executable premium clears its trailing mean by the hurdle.
+  const petalMean = pairs[0]?.mean_bps;
+  const petalFlagLevel = petalMean !== undefined && hurdle !== undefined ? petalMean + hurdle : undefined;
   const pollSeconds = snapshot?.poll_s ?? 15;
 
   const feed = describeFeed(live);
@@ -58,9 +61,9 @@ export const LiveMonitorSection: React.FC = () => {
   const tickChartData = useMemo(() => {
     if (!ticks || ticks.length === 0) return [];
 
-    const times = ticks.map((t) => formatIstTime(t.t));
+    const times = ticks.map((t) => formatIstDateTime(t.t));
 
-    return [
+    const traces: object[] = [
       {
         x: times,
         y: ticks.map((t) => t.p0),
@@ -82,19 +85,23 @@ export const LiveMonitorSection: React.FC = () => {
         y: ticks.map((t) => t.e0),
         type: 'scatter',
         mode: 'lines',
-        name: 'Executable Sell Gap (bps)',
+        name: 'GOLDPETAL Executable Premium (sell at bid, bps)',
         line: { color: '#DC2626', width: 1.2, dash: 'dot' },
       },
+    ];
+    if (petalFlagLevel === undefined) return traces;
+    return [
+      ...traces,
       {
         x: [times[0], times[times.length - 1]],
-        y: [hurdle, hurdle],
+        y: [petalFlagLevel, petalFlagLevel],
         type: 'scatter',
         mode: 'lines',
-        name: `${hurdle.toFixed(1)} bps Hurdle`,
+        name: `GOLDPETAL Flag Level (mean + ${hurdleLabel})`,
         line: { color: '#DC2626', width: 1.5, dash: 'dash' },
       },
     ];
-  }, [ticks, hurdle]);
+  }, [ticks, petalFlagLevel, hurdleLabel]);
 
   return (
     <section id="live" className="story-section">
@@ -218,7 +225,7 @@ export const LiveMonitorSection: React.FC = () => {
               Active Cost Hurdle
             </div>
             <div className="font-mono" style={{ fontSize: '22px', fontWeight: 800, color: 'var(--brand-navy)' }}>
-              {hurdle.toFixed(1)} bps
+              {hurdleLabel}
             </div>
           </div>
         </div>
@@ -306,13 +313,13 @@ export const LiveMonitorSection: React.FC = () => {
                           {signedBps(p.premium_bps)}
                         </td>
                         <td className="num font-mono">
-                          {hurdle.toFixed(1)} bps
+                          {hurdleLabel}
                         </td>
                         <td
                           className="num font-mono"
                           style={{
                             fontWeight: 700,
-                            color: p.exec_gap_bps && p.exec_gap_bps > hurdle ? 'var(--semantic-emerald)' : 'var(--text-secondary)',
+                            color: p.exec_gap_bps !== null && hurdle !== undefined && p.exec_gap_bps > hurdle ? 'var(--semantic-emerald)' : 'var(--text-secondary)',
                           }}
                         >
                           {edgeVal}
@@ -350,12 +357,12 @@ export const LiveMonitorSection: React.FC = () => {
         </div>
 
         {/* 3. Intraday Tick Chart & Interactive Order-Book Depth Ladder Toggle */}
-        <div style={{ display: 'grid', gridTemplateColumns: showDepthLadder ? '1fr 1fr' : '1fr', gap: '24px', alignItems: 'start' }}>
+        <div className={showDepthLadder ? 'split-grid-even' : undefined}>
           <div className="terminal-panel-card">
             <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div>
                 <h4 className="panel-title">Intraday Premium &amp; Executable Spread ({pollSeconds}s Ticks, IST)</h4>
-                <p className="panel-subtitle">Tracks intraday premium movements against the {hurdleLabel} hurdle</p>
+                <p className="panel-subtitle">GOLDPETAL is flagged only when its executable premium clears its trailing mean by the {hurdleLabel} hurdle</p>
               </div>
               <button
                 onClick={() => setShowDepthLadder(!showDepthLadder)}
@@ -376,6 +383,7 @@ export const LiveMonitorSection: React.FC = () => {
             <div style={{ height: '320px', padding: '12px' }}>
               <PlotlyTerminalChart
                 data={tickChartData}
+                layout={{ xaxis: { type: 'date', tickformat: '%H:%M', nticks: 10 } }}
                 options={{
                   yTitle: 'Premium (bps)',
                   showLegend: true,

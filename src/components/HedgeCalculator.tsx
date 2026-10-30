@@ -165,7 +165,7 @@ export const HedgeCalculator: React.FC = () => {
             Net Mass Exposure:
           </span>
           <span className="font-mono" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-            {totalGramsA}g vs {totalGramsB}g &bull; Delta: 0g (Balanced)
+            {totalGramsA}g vs {totalGramsB}g &bull; Delta: {totalGramsA - totalGramsB}g ({totalGramsA === totalGramsB ? 'Balanced' : 'Unbalanced'})
           </span>
         </div>
       </div>

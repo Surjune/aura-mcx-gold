@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#141413"/>
+  <text x="29" y="45" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="34" font-weight="700" fill="#F7F6F2">Au</text>
+  <rect x="49" y="37" width="7" height="7" fill="#FF4F00"/>
+</svg>

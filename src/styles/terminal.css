@@ -1475,3 +1475,158 @@ button.safeguard-toggle:hover,
   font-size: 12px;
   color: #7A7870;
 }
+
+/* ==========================================================================
+   RESPONSIVE SPLIT LAYOUTS & EXPANDABLE PANELS
+   ========================================================================== */
+
+.split-grid,
+.split-grid-even {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 24px;
+  align-items: start;
+}
+.split-grid-even {
+  grid-template-columns: 1fr 1fr;
+}
+.split-grid > *,
+.split-grid-even > * {
+  min-width: 0;
+}
+@media (max-width: 960px) {
+  .split-grid,
+  .split-grid-even {
+    grid-template-columns: 1fr;
+  }
+}
+
+.expand-panel {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.expand-toggle {
+  width: 100%;
+  padding: 16px 20px;
+  background-color: transparent;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brand-navy);
+  text-align: left;
+}
+.expand-toggle-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.expand-toggle-action {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   TERMINAL PANELS (HEDGE CALCULATOR, CARRY DECOMPOSER, ORDER BOOK)
+   ========================================================================== */
+
+.terminal-panel {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.terminal-panel-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--canvas);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.terminal-panel-header .panel-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.panel-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.panel-content {
+  padding: 18px;
+}
+.panel-content.no-pad {
+  padding: 0;
+}
+.terminal-callout {
+  padding: 12px 14px;
+  border-left: 3px solid var(--ink);
+  background-color: var(--surface-bone);
+  border-radius: var(--radius-xs);
+}
+.btn-terminal {
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+.btn-terminal.active {
+  background-color: var(--ink);
+  border-color: var(--ink);
+  color: var(--canvas);
+}
+.orderbook-ladder {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+.orderbook-side.bid {
+  border-right: 1px solid var(--border);
+}
+.orderbook-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 7px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.orderbook-row:last-child {
+  border-bottom: none;
+}
+.orderbook-depth-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  opacity: 0.12;
+  pointer-events: none;
+}
+.orderbook-side.bid .orderbook-depth-bar {
+  right: 0;
+  background-color: var(--semantic-emerald);
+}
+.orderbook-side.ask .orderbook-depth-bar {
+  left: 0;
+  background-color: var(--semantic-crimson);
+}
+.orderbook-cell {
+  position: relative;
+}

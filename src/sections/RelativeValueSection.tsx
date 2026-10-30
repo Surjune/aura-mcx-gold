@@ -4,14 +4,21 @@ import { ContractCard } from '../components/ContractCard';
 import { HedgeCalculator } from '../components/HedgeCalculator';
 import { PlotlyTerminalChart } from '../components/PlotlyTerminalChart';
 import { useTerminal } from '../store/terminalStore';
+import { bps, count, num } from '../utils/format';
+
+type Symbol = 'GOLDM' | 'GOLDTEN' | 'GOLDGUINEA' | 'GOLDPETAL';
+const SYMBOLS: Symbol[] = ['GOLDM', 'GOLDTEN', 'GOLDGUINEA', 'GOLDPETAL'];
 
 export const RelativeValueSection: React.FC = () => {
   const { series, summary } = useTerminal();
   const [showFormula, setShowFormula] = useState(false);
-  const [calcSymbol, setCalcSymbol] = useState<'GOLDM' | 'GOLDTEN' | 'GOLDGUINEA' | 'GOLDPETAL'>('GOLDTEN');
+  const [calcSymbol, setCalcSymbol] = useState<Symbol>('GOLDTEN');
   const [calcPrice, setCalcPrice] = useState<number>(145360);
 
-  const hurdle = summary?.hurdle_bps ?? 13.0762;
+  const hurdle = summary?.hurdle_bps;
+  const hurdleLabel = num(hurdle);
+  const petal = summary?.premiums?.GOLDPETAL;
+  const guinea = summary?.premiums?.GOLDGUINEA;
 
   const specs = {
     GOLDM: { quote: 10, purity: 0.995, label: '10g quote, 0.995 fineness', lot: '100g' },
@@ -65,7 +72,7 @@ export const RelativeValueSection: React.FC = () => {
   // Chart 2: Same-Expiry Premium vs Cost Hurdle Lines
   const premiumSpreadChartData = useMemo(() => {
     if (!series) return [];
-    return [
+    const premiums = [
       {
         x: series.session,
         y: series.prem_petal,
@@ -82,6 +89,10 @@ export const RelativeValueSection: React.FC = () => {
         name: 'GOLDGUINEA Premium vs GOLDTEN',
         line: { color: '#64748B', width: 1.5 },
       },
+    ];
+    if (hurdle === undefined) return premiums;
+    return [
+      ...premiums,
       {
         x: [series.session[0], series.session[series.session.length - 1]],
         y: [hurdle, hurdle],
@@ -203,7 +214,7 @@ export const RelativeValueSection: React.FC = () => {
               onClick={() => setShowFormula(!showFormula)}
               className="details-summary-btn"
             >
-              <span>{showFormula ? 'Hide Formula Calculator' : 'Interactive Normalisation Calculator &darr;'}</span>
+              <span>{showFormula ? 'Hide Formula Calculator' : 'Interactive Normalisation Calculator \u2193'}</span>
             </button>
           </div>
 
@@ -215,7 +226,7 @@ export const RelativeValueSection: React.FC = () => {
                   <select
                     className="terminal-input"
                     value={calcSymbol}
-                    onChange={(e) => setCalcSymbol(e.target.value as any)}
+                    onChange={(e) => setCalcSymbol(SYMBOLS.find((s) => s === e.target.value) ?? 'GOLDTEN')}
                     style={{ marginTop: '4px', width: '100%' }}
                   >
                     <option value="GOLDM">GOLDM (10g quote, 995 purity)</option>
@@ -249,7 +260,7 @@ export const RelativeValueSection: React.FC = () => {
         </div>
 
         {/* Charts & Beta-Neutral Whole-Lot Calculator Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px', alignItems: 'start', marginBottom: '32px' }}>
+        <div className="split-grid" style={{ marginBottom: '32px' }}>
           {/* Left: Normalised Price History Chart */}
           <div className="terminal-panel-card">
             <div className="panel-header">
@@ -257,7 +268,7 @@ export const RelativeValueSection: React.FC = () => {
                 <h4 className="panel-title">Normalised Price History (₹ per Gram of Fine Gold)</h4>
                 <p className="panel-subtitle">Converting all four contracts onto one scale shows true price agreement</p>
               </div>
-              <span className="panel-badge">716 Sessions</span>
+              <span className="panel-badge">{count(series?.session.length, 'Sessions')}</span>
             </div>
             <div style={{ height: '320px', padding: '12px' }}>
               <PlotlyTerminalChart
@@ -281,13 +292,13 @@ export const RelativeValueSection: React.FC = () => {
         <div className="terminal-panel-card">
           <div className="panel-header">
             <div>
-              <h4 className="panel-title">Same-Expiry Premium vs. 13.1 bps Cost Hurdle</h4>
+              <h4 className="panel-title">Same-Expiry Premium vs. {hurdleLabel} bps Cost Hurdle</h4>
               <p className="panel-subtitle">
-                GOLDPETAL trades at a structural median premium of +68.8 bps; GOLDGUINEA at +50.8 bps.
+                GOLDPETAL trades at a structural median premium of {bps(petal?.median)}; GOLDGUINEA at {bps(guinea?.median)}.
                 These are standing retail lot premiums, not fleeting arbitrage.
               </p>
             </div>
-            <span className="panel-badge">Hurdle: &plusmn;{hurdle.toFixed(1)} bps</span>
+            <span className="panel-badge">Hurdle: &plusmn;{hurdleLabel} bps</span>
           </div>
           <div style={{ height: '320px', padding: '12px' }}>
             <PlotlyTerminalChart
@@ -300,7 +311,7 @@ export const RelativeValueSection: React.FC = () => {
             />
           </div>
           <div style={{ padding: '12px 20px', backgroundColor: 'var(--bg-surface-subtle)', borderTop: '1px solid var(--border-subtle)', fontSize: '13px', color: 'var(--text-secondary)' }}>
-            <strong>Key Finding:</strong> GOLDPETAL has never traded below +11.3 bps over GOLDTEN across all sessions.
+            <strong>Key Finding:</strong> GOLDPETAL has never traded below {bps(petal?.min)} over GOLDTEN across all {count(petal?.n, 'sessions')}.
             Retail buyers consistently pay a premium for small lot sizing (1g), meaning this spread cannot simply be sold short profitably after friction.
           </div>
         </div>

@@ -2,6 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { SectionHeading } from '../components/SectionHeading';
 import { PlotlyTerminalChart } from '../components/PlotlyTerminalChart';
 import { useTerminal } from '../store/terminalStore';
+import { bps, count, dayMonthYear, monthRange, num, pct } from '../utils/format';
+
+const SIGNIFICANCE = 0.05; // the verdict rule in aura/report.py: an edge needs bootstrap p < 0.05
 
 export const BacktestResultsSection: React.FC = () => {
   const { summary, backtest, series } = useTerminal();
@@ -11,54 +14,54 @@ export const BacktestResultsSection: React.FC = () => {
 
   const petalSummary = backtest?.summary?.['GOLDPETAL'];
   const petalTrades = backtest?.trades?.['GOLDPETAL'] ?? [];
-  const hurdle = summary?.hurdle_bps ?? 13.0762;
+  const hurdleLabel = num(summary?.hurdle_bps);
+  const dev = petalSummary?.development;
+  const hold = petalSummary?.holdout;
+  const holdoutFrom = petalSummary?.holdout_from;
+  const chosen = petalSummary?.chosen;
+  const grid = petalSummary?.grid ?? [];
 
-  const devTrades = petalSummary?.development?.trades ?? 15;
-  const devNetBps = petalSummary?.development?.net_bps_per_trade ? petalSummary.development.net_bps_per_trade.toFixed(1) : '+21.1';
-  const devSharpe = petalSummary?.development?.sharpe ? petalSummary.development.sharpe.toFixed(2) : '0.89';
+  const isHoldoutTrade = (entry: string) => holdoutFrom !== undefined && entry >= holdoutFrom;
+  const devTradeList = petalTrades.filter((t) => !isHoldoutTrade(t.entry));
+  const holdTradeCount = petalTrades.length - devTradeList.length;
 
-  const holdoutTrades = petalSummary?.holdout?.trades ?? 6;
-  const holdoutNetBps = petalSummary?.holdout?.net_bps_per_trade ? petalSummary.holdout.net_bps_per_trade.toFixed(1) : '-2.7';
-  const holdoutSharpe = petalSummary?.holdout?.sharpe ? petalSummary.holdout.sharpe.toFixed(2) : '-0.05';
-  const holdoutBootstrapP = petalSummary?.holdout?.bootstrap_p ? petalSummary.holdout.bootstrap_p.toFixed(2) : '0.52';
-  const holdoutDsr = petalSummary?.holdout?.deflated_sharpe_prob ? petalSummary.holdout.deflated_sharpe_prob.toFixed(2) : '0.49';
+  // The single development trade that carries most of the profit (reported as best_trade_share).
+  const outlier = useMemo(() => {
+    if (!dev?.best_trade_share || devTradeList.length === 0) return null;
+    return devTradeList.reduce((best, t) => (t.net > best.net ? t : best));
+  }, [dev?.best_trade_share, devTradeList]);
+  const outlierDate = outlier ? dayMonthYear(outlier.exit) : '\u2014';
 
-  // Cumulative Equity Chart with interactive outlier toggle
+  const holdNegative = (hold?.net_bps_per_trade ?? 0) < 0;
+  const holdSignificant = hold?.bootstrap_p !== undefined && hold.bootstrap_p < SIGNIFICANCE;
+
   const equityChartData = useMemo(() => {
-    if (!series || !series.equity || !series.equity.GOLDPETAL) return [];
-    const baseEquity = series.equity.GOLDPETAL;
+    if (!series?.equity?.GOLDPETAL) return [];
     const sessions = series.session;
-
-    // Jan 30, 2026 trade exit index
-    const outlierIndex = sessions.findIndex((s) => s.startsWith('2026-01-30'));
-    const outlierGain = 33970; // Profit from the single anomalous Jan 30 trade (~75.9% of total gain)
-
-    let yValues = baseEquity;
-    if (excludeOutlier && outlierIndex !== -1) {
-      yValues = baseEquity.map((val, idx) => (idx >= outlierIndex ? val - outlierGain : val));
-    }
-
+    const outlierIndex = outlier ? sessions.findIndex((s) => s.startsWith(outlier.exit)) : -1;
+    const yValues = excludeOutlier && outlier && outlierIndex !== -1
+      ? series.equity.GOLDPETAL.map((val, idx) => (idx >= outlierIndex ? val - outlier.net : val))
+      : series.equity.GOLDPETAL;
     return [
       {
         x: sessions,
         y: yValues,
         type: 'scatter',
         mode: 'lines',
-        name: excludeOutlier ? 'Strategy Equity (Jan 30 Crash Outlier Removed)' : 'Strategy Net Equity (₹)',
+        name: excludeOutlier ? `Strategy Equity (${outlierDate} Outlier Removed)` : 'Strategy Net Equity (₹)',
         line: { color: excludeOutlier ? '#64748B' : '#0F172A', width: 2 },
         fill: 'tozeroy',
         fillcolor: 'rgba(15, 23, 42, 0.04)',
       },
-      {
-        x: ['2026-04-20', '2026-04-20'],
-        y: [-15000, 50000],
-        type: 'scatter',
-        mode: 'lines',
-        name: 'Untouched Holdout Cut (Apr 20, 2026)',
-        line: { color: '#DC2626', width: 1.5, dash: 'dash' },
-      },
     ];
-  }, [series, excludeOutlier]);
+  }, [series, excludeOutlier, outlier, outlierDate]);
+
+  const holdoutMarker = holdoutFrom
+    ? {
+        shapes: [{ type: 'line', x0: holdoutFrom, x1: holdoutFrom, yref: 'paper', y0: 0, y1: 1, line: { color: '#DC2626', width: 1.5, dash: 'dash' } }],
+        annotations: [{ x: holdoutFrom, yref: 'paper', y: 1, text: `Untouched holdout from ${dayMonthYear(holdoutFrom)}`, showarrow: false, xanchor: 'left', yanchor: 'bottom', font: { size: 10, color: '#DC2626' } }],
+      }
+    : {};
 
   return (
     <section id="backtest-results" className="story-section">
@@ -107,20 +110,20 @@ export const BacktestResultsSection: React.FC = () => {
             <div className="discipline-step-card">
               <div className="discipline-card-header">
                 <span className="discipline-step-num">STEP 03</span>
-                <span className="discipline-step-tag">&beta; = 0.00</span>
+                <span className="discipline-step-tag">Equal Grams</span>
               </div>
               <h4 className="discipline-step-title">3. Whole-Lot Hedges</h4>
               <p className="discipline-step-desc">
-                Enforced integer lot ratios (100 PETAL vs 10 TEN); zero directional gold beta leakage.
+                Enforced integer lot ratios holding equal grams of gold (100 PETAL vs 10 TEN, 10 GUINEA vs 8 TEN).
               </p>
             </div>
 
             <div className="discipline-step-card highlight">
               <div className="discipline-card-header">
                 <span className="discipline-step-num">STEP 04</span>
-                <span className="discipline-step-tag" style={{ backgroundColor: 'var(--accent-orange-subtle)', color: 'var(--accent-orange)', borderColor: 'var(--accent-orange-border)' }}>13.1 bps</span>
+                <span className="discipline-step-tag" style={{ backgroundColor: 'var(--accent-orange-subtle)', color: 'var(--accent-orange)', borderColor: 'var(--accent-orange-border)' }}>{hurdleLabel} bps</span>
               </div>
-              <h4 className="discipline-step-title">4. 13.1 bps Full Costs</h4>
+              <h4 className="discipline-step-title">4. {hurdleLabel} bps Full Costs</h4>
               <p className="discipline-step-desc">
                 Every statutory rupee charged: MCX turnover + SEBI + Stamp + CTT + GST + Bid-ask slippage.
               </p>
@@ -144,26 +147,25 @@ export const BacktestResultsSection: React.FC = () => {
               </div>
               <h4 className="discipline-step-title">6. Outlier Decomposition</h4>
               <p className="discipline-step-desc">
-                Jan 30 windfall trade (+75.9% of dev P&L) isolated to prove true edge does not survive.
+                The {outlierDate} trade ({pct(dev?.best_trade_share)} of dev P&amp;L) is isolated to test whether any edge remains without it.
               </p>
             </div>
           </div>
         </div>
 
         {/* Development vs Untouched Holdout Comparison Card */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-          {/* Card A: Development Phase */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: '24px', marginBottom: '32px' }}>
           <div className="terminal-panel-card">
             <div className="panel-header">
               <div>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                   In-Sample Tuning
                 </span>
-                <h4 className="panel-title" style={{ marginTop: '2px' }}>Development Period (Apr 2025 – Apr 2026)</h4>
-                <p className="panel-subtitle">Strategy parameters chosen from 9-point grid</p>
+                <h4 className="panel-title" style={{ marginTop: '2px' }}>Development Period ({monthRange(dev?.from, dev?.to)})</h4>
+                <p className="panel-subtitle">Strategy parameters chosen from {grid.length || 9}-point grid</p>
               </div>
               <span className="panel-badge" style={{ backgroundColor: 'var(--bg-surface-subtle)', color: 'var(--brand-navy)' }}>
-                268 Sessions
+                {count(dev?.sessions, 'Sessions')}
               </span>
             </div>
             <div style={{ padding: '20px' }}>
@@ -171,77 +173,79 @@ export const BacktestResultsSection: React.FC = () => {
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Net Return Per Trade</div>
                   <div className="font-mono" style={{ fontSize: '24px', fontWeight: 800, color: 'var(--semantic-emerald)' }}>
-                    +{devNetBps} bps
+                    {bps(dev?.net_bps_per_trade)}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Completed Trades</div>
                   <div className="font-mono" style={{ fontSize: '24px', fontWeight: 800, color: 'var(--brand-navy)' }}>
-                    {devTrades} trades
+                    {count(dev?.trades, 'trades')}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Win Rate</div>
                   <div className="font-mono" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--brand-navy)' }}>
-                    80.0%
+                    {pct(dev?.win_rate)}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Annualised Sharpe</div>
                   <div className="font-mono" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--brand-navy)' }}>
-                    {devSharpe}
+                    {num(dev?.sharpe, 2)}
                   </div>
                 </div>
               </div>
               <div style={{ padding: '12px', backgroundColor: 'var(--semantic-amber-bg)', border: '1px solid var(--semantic-amber-border)', borderRadius: '6px', fontSize: '12px', color: 'var(--brand-navy)' }}>
-                <strong>The Mirage:</strong> 75.9% of this development profit came from one single trade on Jan 30, 2026. Without that trade, edge was only +7.5 bps.
+                <strong>The Mirage:</strong> {pct(dev?.best_trade_share)} of this development profit came from one trade exiting on {outlierDate}.
+                Without that trade, the edge was only {bps(dev?.net_bps_ex_best)} per trade.
               </div>
             </div>
           </div>
 
-          {/* Card B: Untouched Holdout */}
           <div className="terminal-panel-card" style={{ border: '2px solid var(--brand-navy)' }}>
             <div className="panel-header" style={{ backgroundColor: 'var(--bg-surface-subtle)' }}>
               <div>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--semantic-crimson)', textTransform: 'uppercase' }}>
                   Out-of-Sample Verification
                 </span>
-                <h4 className="panel-title" style={{ marginTop: '2px' }}>Untouched Holdout (Apr 2026 – Oct 2026)</h4>
+                <h4 className="panel-title" style={{ marginTop: '2px' }}>Untouched Holdout ({monthRange(hold?.from, hold?.to)})</h4>
                 <p className="panel-subtitle">Zero parameter changes; real execution test</p>
               </div>
               <span className="panel-badge" style={{ backgroundColor: 'var(--semantic-crimson-bg)', color: 'var(--semantic-crimson)', border: '1px solid var(--semantic-crimson-border)' }}>
-                Sealed Period
+                {count(hold?.sessions, 'Sessions')}
               </span>
             </div>
             <div style={{ padding: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Net Return Per Trade</div>
-                  <div className="font-mono" style={{ fontSize: '24px', fontWeight: 800, color: 'var(--semantic-crimson)' }}>
-                    {holdoutNetBps} bps
+                  <div className="font-mono" style={{ fontSize: '24px', fontWeight: 800, color: holdNegative ? 'var(--semantic-crimson)' : 'var(--semantic-emerald)' }}>
+                    {bps(hold?.net_bps_per_trade)}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Completed Trades</div>
                   <div className="font-mono" style={{ fontSize: '24px', fontWeight: 800, color: 'var(--brand-navy)' }}>
-                    {holdoutTrades} trades
+                    {count(hold?.trades, 'trades')}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Bootstrap p-value</div>
                   <div className="font-mono" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--semantic-crimson)' }}>
-                    {holdoutBootstrapP}
+                    {num(hold?.bootstrap_p, 2)}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Deflated Sharpe Prob</div>
                   <div className="font-mono" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--semantic-crimson)' }}>
-                    {holdoutDsr}
+                    {num(hold?.deflated_sharpe_prob, 2)}
                   </div>
                 </div>
               </div>
               <div style={{ padding: '12px', backgroundColor: 'var(--semantic-crimson-bg)', border: '1px solid var(--semantic-crimson-border)', borderRadius: '6px', fontSize: '12px', color: 'var(--semantic-crimson)' }}>
-                <strong>Rigorous Finding:</strong> Win rate dropped to 33.3%, net return turned negative, and bootstrap p of 0.52 confirms the result is indistinguishable from random luck.
+                <strong>Rigorous Finding:</strong> Win rate went from {pct(dev?.win_rate)} to {pct(hold?.win_rate)}, net return per trade{' '}
+                {holdNegative ? 'turned negative' : `was ${bps(hold?.net_bps_per_trade)}`}, and a bootstrap p of {num(hold?.bootstrap_p, 2)}{' '}
+                {holdSignificant ? 'is below the 0.05 significance bar.' : 'means the result is indistinguishable from luck.'}
               </div>
             </div>
           </div>
@@ -251,11 +255,12 @@ export const BacktestResultsSection: React.FC = () => {
         <div className="terminal-panel-card" style={{ marginBottom: '32px' }}>
           <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div>
-              <h4 className="panel-title">Cumulative Backtest Equity Curve (Net of Full 13.1 bps Friction)</h4>
-              <p className="panel-subtitle">Notice the vertical spike on January 30, 2026 followed by the flat/negative holdout period</p>
+              <h4 className="panel-title">Cumulative Backtest Equity Curve (Net of Full {hurdleLabel} bps Friction)</h4>
+              <p className="panel-subtitle">Notice the vertical spike on {outlierDate} followed by the flat/negative holdout period</p>
             </div>
             <button
               onClick={() => setExcludeOutlier(!excludeOutlier)}
+              disabled={!outlier}
               style={{
                 padding: '6px 14px',
                 backgroundColor: excludeOutlier ? 'var(--brand-navy)' : 'var(--bg-surface-subtle)',
@@ -264,11 +269,11 @@ export const BacktestResultsSection: React.FC = () => {
                 borderRadius: '6px',
                 fontSize: '13px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: outlier ? 'pointer' : 'default',
                 transition: 'all 150ms ease',
               }}
             >
-              {excludeOutlier ? 'Show With Jan 30 Outlier Included' : 'Inspect Without Jan 30 Crash Outlier'}
+              {excludeOutlier ? `Show With ${outlierDate} Outlier Included` : `Inspect Without ${outlierDate} Outlier`}
             </button>
           </div>
           <div style={{ height: '340px', padding: '12px' }}>
@@ -278,39 +283,24 @@ export const BacktestResultsSection: React.FC = () => {
                 yTitle: 'Net P&L (₹)',
                 showLegend: true,
                 legendOrientation: 'h',
+                ...holdoutMarker,
               }}
             />
           </div>
-          <div style={{ padding: '14px 20px', backgroundColor: 'var(--bg-surface-subtle)', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              <strong>Why reporting this proves credibility:</strong> Most retail backtests keep the outlier and market it as alpha.
-              AuRA exposes that the Jan 30 sell-off created an artificial close mark nobody could trade in size, proving no persistent edge survives.
-            </div>
+          <div style={{ padding: '14px 20px', backgroundColor: 'var(--bg-surface-subtle)', borderTop: '1px solid var(--border-subtle)', fontSize: '13px', color: 'var(--text-secondary)' }}>
+            <strong>Why reporting this proves credibility:</strong> Most retail backtests keep the outlier and market it as alpha.
+            AuRA shows that the {outlierDate} close was a sell-off mark nobody could trade in size; without it, no persistent edge survives.
           </div>
         </div>
 
         {/* Expandable Trade Log & Parameter Grid Search */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* Expandable 1: Complete Trade Log */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-            <button
-              onClick={() => setShowTradeLog(!showTradeLog)}
-              style={{
-                width: '100%',
-                padding: '16px 20px',
-                backgroundColor: 'transparent',
-                border: 'none',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 600,
-                color: 'var(--brand-navy)',
-              }}
-            >
-              <span>See Complete Walk-Forward Trade Log ({petalTrades.length} Trades: 15 Dev + 6 Holdout)</span>
-              <span>{showTradeLog ? '▲ Hide' : '▼ Expand'}</span>
+          <div className="expand-panel">
+            <button className="expand-toggle" onClick={() => setShowTradeLog(!showTradeLog)} aria-expanded={showTradeLog}>
+              <span className="expand-toggle-label">
+                See Complete Walk-Forward Trade Log ({petalTrades.length} Trades: {devTradeList.length} Dev + {holdTradeCount} Holdout)
+              </span>
+              <span className="expand-toggle-action">{showTradeLog ? '▲ Hide' : '▼ Expand'}</span>
             </button>
 
             {showTradeLog && (
@@ -322,7 +312,7 @@ export const BacktestResultsSection: React.FC = () => {
                       <th>Entry Date</th>
                       <th>Exit Date</th>
                       <th>Side</th>
-                      <th className="num">Held (Days)</th>
+                      <th className="num">Held (Sessions)</th>
                       <th className="num">Notional (₹)</th>
                       <th className="num">Gross P&L (₹)</th>
                       <th className="num">Costs (₹)</th>
@@ -332,11 +322,11 @@ export const BacktestResultsSection: React.FC = () => {
                   </thead>
                   <tbody>
                     {petalTrades.map((t, idx) => {
-                      const isHoldout = t.entry >= '2026-04-20';
-                      const isOutlier = t.exit === '2026-01-30';
+                      const isHoldout = isHoldoutTrade(t.entry);
+                      const isOutlier = outlier !== null && t.entry === outlier.entry && t.exit === outlier.exit;
                       return (
                         <tr
-                          key={idx}
+                          key={`${t.entry}-${t.exit}`}
                           style={{
                             backgroundColor: isOutlier ? 'var(--accent-gold-bg)' : isHoldout ? 'rgba(220, 38, 38, 0.04)' : undefined,
                           }}
@@ -368,7 +358,7 @@ export const BacktestResultsSection: React.FC = () => {
                                 color: isHoldout ? 'var(--semantic-crimson)' : 'var(--brand-navy)',
                               }}
                             >
-                              {isOutlier ? '★ Jan 30 Outlier' : isHoldout ? 'Untouched Holdout' : 'Development'}
+                              {isOutlier ? `★ ${outlierDate} Outlier` : isHoldout ? 'Untouched Holdout' : 'Development'}
                             </span>
                           </td>
                         </tr>
@@ -380,67 +370,47 @@ export const BacktestResultsSection: React.FC = () => {
             )}
           </div>
 
-          {/* Expandable 2: Parameter Grid Search Details */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
-            <button
-              onClick={() => setShowGridSearch(!showGridSearch)}
-              style={{
-                width: '100%',
-                padding: '16px 20px',
-                backgroundColor: 'transparent',
-                border: 'none',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 600,
-                color: 'var(--brand-navy)',
-              }}
-            >
-              <span>See Parameter Grid Search (9 Trials Evaluated on Development Period Only)</span>
-              <span>{showGridSearch ? '▲ Hide' : '▼ Expand'}</span>
+          <div className="expand-panel">
+            <button className="expand-toggle" onClick={() => setShowGridSearch(!showGridSearch)} aria-expanded={showGridSearch}>
+              <span className="expand-toggle-label">
+                See Parameter Grid Search ({grid.length} Trials Evaluated on Development Period Only)
+              </span>
+              <span className="expand-toggle-action">{showGridSearch ? '▲ Hide' : '▼ Expand'}</span>
             </button>
 
             {showGridSearch && (
               <div style={{ padding: '0 20px 20px' }}>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                  AuRA tested 9 combinations of rolling lookback window (40, 60, 120 sessions) and entry threshold (z = 1.5, 2.0, 2.5) on the development period.
-                  The best setting (window = 40, z = 1.5) was frozen before opening the holdout.
-                  Bailey &amp; Lopez de Prado&apos;s Deflated Sharpe Ratio (DSR) penalises the holdout result for having searched across 9 trials.
+                  AuRA tested {grid.length} combinations of rolling lookback window ({[...new Set(grid.map((g) => g.window))].join(', ')} sessions)
+                  and entry threshold (z = {[...new Set(grid.map((g) => g.z_in))].join(', ')}) on the development period.
+                  The best setting (window = {chosen?.window ?? '\u2014'}, z = {chosen?.z_in ?? '\u2014'}) was frozen before opening the holdout.
+                  Bailey &amp; Lopez de Prado&apos;s Deflated Sharpe Ratio (DSR) penalises the result for having searched across {grid.length} trials.
                 </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                  {[
-                    { w: 40, z: 1.5, sharpe: 0.89, selected: true },
-                    { w: 40, z: 2.0, sharpe: 0.72, selected: false },
-                    { w: 40, z: 2.5, sharpe: 0.45, selected: false },
-                    { w: 60, z: 1.5, sharpe: 0.65, selected: false },
-                    { w: 60, z: 2.0, sharpe: 0.51, selected: false },
-                    { w: 60, z: 2.5, sharpe: 0.33, selected: false },
-                    { w: 120, z: 1.5, sharpe: 0.41, selected: false },
-                    { w: 120, z: 2.0, sharpe: 0.28, selected: false },
-                    { w: 120, z: 2.5, sharpe: 0.15, selected: false },
-                  ].map((g, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: '12px 14px',
-                        borderRadius: '6px',
-                        border: g.selected ? '2px solid var(--brand-navy)' : '1px solid var(--border-subtle)',
-                        backgroundColor: g.selected ? 'var(--accent-gold-bg)' : 'var(--bg-surface-subtle)',
-                      }}
-                    >
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                        {g.selected ? '✓ CHOSEN SETTING' : `TRIAL #${idx + 1}`}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                  {grid.map((g, idx) => {
+                    const selected = chosen !== undefined && g.window === chosen.window && g.z_in === chosen.z_in;
+                    return (
+                      <div
+                        key={`${g.window}-${g.z_in}`}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '6px',
+                          border: selected ? '2px solid var(--brand-navy)' : '1px solid var(--border-subtle)',
+                          backgroundColor: selected ? 'var(--accent-gold-bg)' : 'var(--bg-surface-subtle)',
+                        }}
+                      >
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                          {selected ? '✓ CHOSEN SETTING' : `TRIAL #${idx + 1}`}
+                        </div>
+                        <div className="font-mono" style={{ fontSize: '14px', fontWeight: 700, color: 'var(--brand-navy)', marginTop: '2px' }}>
+                          Window {g.window} &bull; z={g.z_in}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          Dev Sharpe: {num(g.dev_sharpe, 2)}
+                        </div>
                       </div>
-                      <div className="font-mono" style={{ fontSize: '14px', fontWeight: 700, color: 'var(--brand-navy)', marginTop: '2px' }}>
-                        Window {g.w}s &bull; z={g.z}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        Dev Sharpe: {g.sharpe}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

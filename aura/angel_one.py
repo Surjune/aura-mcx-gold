@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
-from aura.live import IST, history, load_env, market_open, pick_contracts, publish, snapshot
+from aura.live import DEPTH_LEVELS, IST, depth_level, history, load_env, market_open, pick_contracts, publish, snapshot
 from aura.specs import fine_per_gram
 
 INSTRUMENT_MASTER_URL = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
@@ -142,6 +142,20 @@ def _best_price(levels: Any, field: str, divisor: float) -> float | None:
     return raw / divisor if raw is not None else None
 
 
+def _depth(buys: Any, sells: Any, divisor: float) -> list[dict[str, float | None]]:
+    """Snap Quote best_5_buy/sell_data -> AuRA depth levels (prices from paise, quantities in lots)."""
+    buys = buys if isinstance(buys, list) else []
+    sells = sells if isinstance(sells, list) else []
+    levels = []
+    for i in range(min(DEPTH_LEVELS, max(len(buys), len(sells)))):
+        b = buys[i] if i < len(buys) and isinstance(buys[i], dict) else {}
+        s = sells[i] if i < len(sells) and isinstance(sells[i], dict) else {}
+        bid, ask = _number(b.get("price")), _number(s.get("price"))
+        levels.append(depth_level(bid / divisor if bid else None, _number(b.get("quantity")),
+                                  ask / divisor if ask else None, _number(s.get("quantity"))))
+    return levels
+
+
 def quote_from_tick(tick: dict[str, Any], instrument: Instrument, divisor: float) -> dict[str, Any]:
     """Convert SmartWebSocketV2 Snap Quote fields into AuRA's existing quote shape."""
     ltp_raw = _number(tick.get("last_traded_price", tick.get("ltp")))
@@ -150,6 +164,7 @@ def quote_from_tick(tick: dict[str, Any], instrument: Instrument, divisor: float
     ltp = ltp_raw / divisor
     bid = _best_price(tick.get("best_5_buy_data"), "price", divisor)
     ask = _best_price(tick.get("best_5_sell_data"), "price", divisor)
+    depth = _depth(tick.get("best_5_buy_data"), tick.get("best_5_sell_data"), divisor)
     close_raw = _number(tick.get("closed_price", tick.get("close")))
     prev_close = close_raw / divisor if close_raw is not None else None
     return {
@@ -165,6 +180,7 @@ def quote_from_tick(tick: dict[str, Any], instrument: Instrument, divisor: float
         "as_on": _timestamp(tick.get("exchange_timestamp", tick.get("last_traded_timestamp"))),
         "spread_bps": (ask - bid) / ((ask + bid) / 2) * 1e4 if bid and ask else None,
         "fine": fine_per_gram(instrument.symbol, ltp),
+        "depth": depth,
     }
 
 

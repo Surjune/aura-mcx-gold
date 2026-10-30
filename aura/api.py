@@ -4,7 +4,9 @@ Usage:  uvicorn aura.api:app --port 8000   then open http://localhost:8000
 Serves the results written by `python -m aura.report`.
 """
 import json
+import logging
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -21,7 +23,10 @@ LIVE = ROOT / "data" / "live.json"          # written by `python -m aura.live` (
 TICKS = ROOT / "data" / "live_ticks.json"
 SESSION = ROOT / "data" / "last_session.json"  # committed by the poller
 
+FAVICON = ROOT / "public" / "favicon.svg"
+
 app = FastAPI(title="AuRA", description="Relative-value analytics for MCX gold futures")
+log = logging.getLogger("aura.api")
 
 
 def _results() -> dict:
@@ -76,7 +81,11 @@ def live() -> dict:
     """
     snap, ticks, source = None, [], None
     if all(upstash(read_only=True)):
-        raw, raw_ticks = _upstash([["GET", "aura:live"], ["LRANGE", "aura:ticks", "0", "-1"]])
+        try:
+            raw, raw_ticks = _upstash([["GET", "aura:live"], ["LRANGE", "aura:ticks", "0", "-1"]])
+        except (urllib.error.URLError, TimeoutError, ValueError) as exc:  # fall through to local / archive
+            log.warning("Upstash read failed: %s", exc)
+            raw, raw_ticks = None, None
         if raw:
             snap, ticks, source = json.loads(raw), [json.loads(x) for x in raw_ticks or []], "upstash"
     if snap is None and LIVE.exists():
@@ -108,6 +117,11 @@ def dashboard() -> FileResponse:
 @app.get("/live")
 def live_page() -> FileResponse:
     return FileResponse(ROOT / "public" / "live.html")
+
+
+@app.get("/favicon.svg", include_in_schema=False)
+def favicon() -> FileResponse:
+    return FileResponse(FAVICON, media_type="image/svg+xml")
 
 
 ASSETS = ROOT / "public" / "assets"

@@ -56,15 +56,18 @@ export const formatAge = (seconds?: number): string | null => {
   return `${Math.max(0, Math.round(seconds))} s ago`;
 };
 
-const IST_TIME = new Intl.DateTimeFormat('en-GB', {
+const IST_DATETIME = new Intl.DateTimeFormat('sv-SE', {
   timeZone: 'Asia/Kolkata',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
   hour: '2-digit',
   minute: '2-digit',
   second: '2-digit',
   hour12: false,
 });
 
-/** Epoch seconds -> HH:MM:SS in IST, whatever the viewer's own time zone. */
-export const formatIstTime = (epochSeconds: number): string => IST_TIME.format(new Date(epochSeconds * 1000));
+/** Epoch seconds -> "YYYY-MM-DD HH:MM:SS" wall-clock IST, which Plotly reads as a date axis value. */
+export const formatIstDateTime = (epochSeconds: number): string => IST_DATETIME.format(new Date(epochSeconds * 1000));
 
 export const signedBps = (value: number): string => `${value >= 0 ? '+' : ''}${value.toFixed(1)} bps`;
