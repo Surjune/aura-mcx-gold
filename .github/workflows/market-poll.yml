@@ -20,14 +20,26 @@ jobs:
           AURA_POLL_URL: ${{ secrets.AURA_POLL_URL }}
           POLL_SECRET: ${{ secrets.POLL_SECRET }}
         run: |
-          if [ -z "$AURA_POLL_URL" ]; then
-            echo "::error title=Missing AURA_POLL_URL::Add the GitHub Actions secret with https://aura.lightninglogics.me/api/poll"
-            exit 1
-          fi
           if [ -z "$POLL_SECRET" ]; then
             echo "::error title=Missing POLL_SECRET::Add the GitHub Actions secret and make it exactly match Vercel's POLL_SECRET."
             exit 1
           fi
+          POLL_URL="${AURA_POLL_URL:-https://aura.lightninglogics.me/api/poll}"
+          POLL_URL="$(printf '%s' "$POLL_URL" | tr -d '\r\n')"
+          case "$POLL_URL" in
+            \[*\]) POLL_URL="${POLL_URL#\[}"; POLL_URL="${POLL_URL%\]}" ;;
+          esac
+          POLL_URL="${POLL_URL%\"}"
+          POLL_URL="${POLL_URL#\"}"
+          POLL_URL="${POLL_URL%\'}"
+          POLL_URL="${POLL_URL#\'}"
+          case "$POLL_URL" in
+            http://*|https://*) ;;
+            *)
+              echo "::error title=Invalid AURA_POLL_URL::Set AURA_POLL_URL to a plain https URL (for example https://aura.lightninglogics.me/api/poll)."
+              exit 1
+              ;;
+          esac
           curl --fail --silent --show-error --retry 2 --max-time 55 \
-            -H "Authorization: Bearer $POLL_SECRET" \
-            "$AURA_POLL_URL"
+            -H "Authorization: $POLL_SECRET" \
+            "$POLL_URL"
