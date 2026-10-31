@@ -208,3 +208,16 @@ def test_stale_exchange_stamp_means_not_trading():
     now = 1_800_000_000
     assert exchange_stale(now - STALE_S - 1, now)      # holiday morning: last update was last night
     assert not exchange_stale(now - 60, now)           # normal session: stamp moves every minute
+
+
+def test_publish_rejects_redis_command_errors_even_with_http_200(tmp_path, monkeypatch):
+    import io
+    from aura import live
+    monkeypatch.setattr(live, "LIVE", tmp_path / "live.json")
+    monkeypatch.setattr(live, "TICKS", tmp_path / "ticks.json")
+    monkeypatch.setenv("KV_REST_API_URL", "https://example.invalid")
+    monkeypatch.setenv("KV_REST_API_TOKEN", "test-token")
+    monkeypatch.setattr(live.urllib.request, "urlopen", lambda *_a, **_k:
+                        io.BytesIO(b'[{"error":"NOPERM"},{"error":"NOPERM"},{"error":"NOPERM"}]'))
+    pair = classify("x", 40.0, 39.0, 41.0, HIST, hurdle=13.0, tradeable=True)
+    assert live.publish({"published": 100.0, "pairs": [pair]}) is False

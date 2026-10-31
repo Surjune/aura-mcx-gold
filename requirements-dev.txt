@@ -6,4 +6,7 @@ playwright==1.47.0
 pytest==8.3.3
 pyotp==2.9.0
 smartapi-python==1.5.5
+logzero==1.7.0
+websocket-client==1.9.2
+pycryptodome==4.2.0
 uvicorn==0.32.0

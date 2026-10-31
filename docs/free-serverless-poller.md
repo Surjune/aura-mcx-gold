@@ -68,6 +68,15 @@ timestamp and shared Upstash source.
 
 ## Operations and limits
 
+- Contract discovery and token matching require `instrumenttype: FUTCOM`. MCX options
+  share commodity names and must never be selected as futures.
+- REST `FULL` quote prices are in rupees. `ANGEL_PRICE_DIVISOR=100` applies only to
+  WebSocket ticks, which arrive in paise.
+- The serverless poller uses direct SmartAPI HTTPS requests so it does not require
+  the SDK's writable `logs/` directory. Broker credentials and tokens are never logged.
+- A successful poll confirms each Upstash pipeline command, including errors returned
+  inside HTTP 200 responses.
+
 - Schedules run on weekdays from 09:00 to 23:45 IST. Market holidays may return no usable quote.
 - GitHub Actions schedules can be delayed under load; this is why the health state uses timestamps.
 - The free approach is suitable for demos and periodic monitoring. For 15-second or guaranteed

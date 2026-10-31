@@ -82,6 +82,12 @@ def fetch_instrument_master(url: str | None = None) -> list[dict[str, Any]]:
     return payload
 
 
+def _is_mcx_future(row: dict[str, Any]) -> bool:
+    # The master also contains GOLDM options with the same name and different expiries.
+    return (str(row.get("exch_seg", "")).upper() == "MCX"
+            and str(row.get("instrumenttype", "")).upper() == "FUTCOM")
+
+
 def pick_contracts_from_master(today: date, rows: list[dict[str, Any]]) -> dict[str, date]:
     """Choose live legs from Angel One's current MCX master, without a local DuckDB file.
 
@@ -92,7 +98,7 @@ def pick_contracts_from_master(today: date, rows: list[dict[str, Any]]) -> dict[
     for row in rows:
         symbol = str(row.get("name", "")).upper()
         expiry = parse_expiry(row.get("expiry"))
-        if (str(row.get("exch_seg", "")).upper() == "MCX" and symbol in expiries
+        if (_is_mcx_future(row) and symbol in expiries
                 and expiry is not None and (expiry - today).days >= MIN_DTE):
             expiries[symbol].add(expiry)
     ten, goldm = sorted(expiries["GOLDTEN"]), sorted(expiries["GOLDM"])
@@ -129,7 +135,7 @@ def resolve_instruments(contracts: dict[str, date], rows: list[dict[str, Any]]) 
         expected_expiry = contracts["ten"] if leg in {"ten", "petal", "guinea"} else contracts["m"] if leg == "m" else contracts["ten_next"]
         choices = [
             row for row in rows
-            if str(row.get("exch_seg", "")).upper() == "MCX"
+            if _is_mcx_future(row)
             and str(row.get("name", "")).upper() == symbol
             and parse_expiry(row.get("expiry")) == expected_expiry
             and row.get("token")
@@ -204,12 +210,12 @@ def quote_from_tick(tick: dict[str, Any], instrument: Instrument, divisor: float
     }
 
 
-def quote_from_market_data(row: dict[str, Any], instrument: Instrument, divisor: float) -> dict[str, Any]:
+def quote_from_market_data(row: dict[str, Any], instrument: Instrument, divisor: float = 1) -> dict[str, Any]:
     """Convert a SmartAPI REST ``FULL`` quote into AuRA's quote shape.
 
     The persistent worker uses SmartAPI's WebSocket. Serverless functions cannot keep a
     socket open, so the free scheduler uses the broker's one-shot market-data endpoint
-    instead. Both paths preserve the same five-leg, exact-expiry calculation downstream.
+    instead. REST prices are already in rupees; the WebSocket paise divisor does not apply.
     """
     ltp_raw = _number(row.get("ltp", row.get("last_traded_price")))
     if ltp_raw is None:
@@ -249,6 +255,24 @@ def serverless_poll_seconds() -> int:
         raise ValueError("SERVERLESS_POLL_SECONDS must be a positive integer") from exc
 
 
+def _rest_request(path: str, payload: dict[str, Any], settings: AngelSettings,
+                  jwt: str | None = None) -> dict[str, Any]:
+    """Read-only broker requests without SDK disk logging (Vercel is read-only)."""
+    headers = {"Content-Type": "application/json", "Accept": "application/json",
+               "X-PrivateKey": settings.api_key, "X-UserType": "USER", "X-SourceID": "WEB",
+               "X-ClientLocalIP": "127.0.0.1", "X-ClientPublicIP": "127.0.0.1",
+               "X-MACAddress": "00:00:00:00:00:00"}
+    if jwt:
+        headers["Authorization"] = f"Bearer {jwt}"
+    req = urllib.request.Request("https://apiconnect.angelone.in" + path,
+                                 data=json.dumps(payload).encode(), headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=10) as response:
+        result = json.load(response)
+    if not isinstance(result, dict):
+        raise RuntimeError("Angel One returned an unexpected response")
+    return result
+
+
 def poll_once() -> dict[str, Any]:
     """Fetch one five-leg SmartAPI snapshot for a serverless invocation.
 
@@ -259,7 +283,6 @@ def poll_once() -> dict[str, Any]:
     settings = AngelSettings.from_env()
     try:
         import pyotp
-        from SmartApi import SmartConnect
     except ImportError as exc:
         raise RuntimeError("Install Angel One dependencies: pip install -r requirements.txt") from exc
 
@@ -267,11 +290,14 @@ def poll_once() -> dict[str, Any]:
     now = datetime.now(IST)
     contracts = pick_contracts_from_master(now.date(), master)
     instruments = resolve_instruments(contracts, master)
-    smart = SmartConnect(api_key=settings.api_key)
-    session = smart.generateSession(settings.client_code, settings.pin, pyotp.TOTP(settings.totp_secret).now())
+    session = _rest_request("/rest/auth/angelbroking/user/v1/loginByPassword", {
+        "clientcode": settings.client_code, "password": settings.pin,
+        "totp": pyotp.TOTP(settings.totp_secret).now()}, settings)
     if not session or not session.get("status"):
         raise RuntimeError("Angel One login failed")
-    response = smart.getMarketData("FULL", {"MCX": [item.token for item in instruments.values()]})
+    response = _rest_request("/rest/secure/angelbroking/market/v1/quote", {
+        "mode": "FULL", "exchangeTokens": {"MCX": [item.token for item in instruments.values()]}},
+        settings, session["data"]["jwtToken"])
     if not response or not response.get("status"):
         raise RuntimeError("Angel One market-data request failed")
     fetched = response.get("data", {}).get("fetched", [])
@@ -281,7 +307,7 @@ def poll_once() -> dict[str, Any]:
         row = by_token.get(instrument.token)
         if row is None:
             raise RuntimeError(f"Angel One did not return a quote for {instrument.symbol} ({instrument.token})")
-        quotes[leg] = quote_from_market_data(row, instrument, settings.price_divisor)
+        quotes[leg] = quote_from_market_data(row, instrument)
     live = snapshot(quotes, history(), contracts)
     live.update({"feed_source": "angelone_rest", "poll_s": serverless_poll_seconds(),
                  "market_open": market_open(now)})

@@ -206,7 +206,11 @@ def publish(snap: dict) -> bool:
         # the snapshot is already saved locally and the next poll publishes again.
         try:
             with urllib.request.urlopen(req, timeout=10) as r:
-                r.read()
+                results = json.load(r)
+            if (not isinstance(results, list) or len(results) != len(cmds)
+                    or any(not isinstance(item, dict) or "error" in item or "result" not in item
+                           for item in results)):
+                return False
             return True
         except (urllib.error.URLError, TimeoutError) as exc:
             print(datetime.now(IST).strftime("%H:%M:%S"), "Upstash publish failed:", exc, flush=True)

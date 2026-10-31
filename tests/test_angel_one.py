@@ -26,6 +26,8 @@ def test_resolve_instruments_uses_exact_symbol_and_expiry(monkeypatch):
         # Same contract name but wrong expiry must never replace the selected front month.
         {"exch_seg": "MCX", "name": "GOLDPETAL", "expiry": "30NOV2026", "token": "wrong"},
     ]
+    rows = [dict(row, instrumenttype="FUTCOM") for row in rows]
+    rows.append(dict(rows[-2], instrumenttype="OPTFUT", token="option"))
     instruments = resolve_instruments(contracts, rows)
     assert {leg: item.token for leg, item in instruments.items()} == {
         "ten": "101", "ten_next": "102", "petal": "103", "guinea": "104", "m": "105"}
@@ -39,6 +41,9 @@ def test_cloud_worker_can_select_contracts_from_instrument_master_without_duckdb
         # Expiry too close to delivery must not be used.
         {"exch_seg": "MCX", "name": "GOLDTEN", "expiry": "24OCT2026"},
     ]
+    rows = [dict(row, instrumenttype="FUTCOM") for row in rows]
+    rows.append({"exch_seg": "MCX", "name": "GOLDM", "expiry": "30OCT2026",
+                 "instrumenttype": "OPTFUT", "token": "option"})
     assert pick_contracts_from_master(date(2026, 10, 20), rows) == {
         "ten": date(2026, 10, 30), "ten_next": date(2026, 11, 30), "m": date(2026, 11, 5)}
 
@@ -73,18 +78,18 @@ def test_quote_depth_converts_every_level_from_paise():
                               {"bid": 145340, "bid_qty": 3, "ask": None, "ask_qty": None}]
 
 
-def test_rest_market_data_quote_uses_the_same_paise_and_depth_rules():
+def test_rest_market_data_quote_preserves_rupees_and_depth():
     item = Instrument("petal", "GOLDPETAL", date(2026, 10, 30), "103")
     quote = quote_from_market_data({
-        "ltp": 1471400,
-        "close": 1460000,
+        "ltp": 14714,
+        "close": 14600,
         "percentChange": 0.78,
         "tradeVolume": 12,
         "opnInterest": 9,
         "depth": {
-            "buy": [{"price": 1471300, "quantity": 7}],
-            "sell": [{"price": 1471500, "quantity": 5}],
+            "buy": [{"price": 14713, "quantity": 7}],
+            "sell": [{"price": 14715, "quantity": 5}],
         },
-    }, item, 100)
+    }, item)
     assert (quote["ltp"], quote["bid"], quote["ask"], quote["prev_close"]) == (14714, 14713, 14715, 14600)
     assert quote["depth"] == [{"bid": 14713, "bid_qty": 7, "ask": 14715, "ask_qty": 5}]
