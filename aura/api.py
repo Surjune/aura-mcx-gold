@@ -5,12 +5,14 @@ Serves the results written by `python -m aura.report`.
 """
 import json
 import logging
+import os
+import secrets
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -72,6 +74,40 @@ def _upstash(cmds: list[list[str]]) -> list:
         return [x.get("result") for x in json.loads(r.read())]
 
 
+def _require_poll_authorization(authorization: str | None) -> None:
+    """Keep the write-capable serverless poll endpoint private."""
+    secret = os.environ.get("POLL_SECRET", "")
+    expected = f"Bearer {secret}"
+    if not secret:
+        raise HTTPException(503, "Scheduled polling is not configured")
+    if not authorization or not secrets.compare_digest(authorization, expected):
+        raise HTTPException(401, "Unauthorized")
+
+
+@app.get("/api/poll", include_in_schema=False)
+def poll(authorization: str | None = Header(default=None)) -> dict:
+    """Fetch one broker quote snapshot and atomically publish it to shared Upstash state.
+
+    This is intentionally a one-shot request for GitHub Actions or a paid Vercel Cron;
+    it never attempts to run a background loop inside a Vercel function.
+    """
+    _require_poll_authorization(authorization)
+    try:
+        from aura.angel_one import poll_once
+        from aura.live import publish
+
+        snap = poll_once()
+        if not publish(snap):
+            raise RuntimeError("shared Upstash write was not confirmed")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.exception("Scheduled market-data poll failed")
+        raise HTTPException(502, "Market-data poll failed; shared state was not updated") from exc
+    return {"status": "published", "published": snap["published"], "poll_s": snap["poll_s"],
+            "contracts": len(snap["contracts"]), "feed_source": snap["feed_source"]}
+
+
 @app.get("/api/live")
 def live() -> dict:
     """Latest real-time snapshot and today's ticks.
@@ -99,11 +135,15 @@ def live() -> dict:
         return {"status": "offline", "source": None, "ticks": []}
     age = time.time() - snap["published"]
     fresh_after_s = live_fresh_seconds()
+    poll_s = max(1, int(snap.get("poll_s", 15)))
     if source == "session archive":  # a frozen copy is never live, however recent
         status = "replay"
     elif age <= fresh_after_s:
         status = "live" if snap["market_open"] else "closed"
-    elif age < 600:
+    elif poll_s >= 60 and age <= poll_s + 90:
+        # A scheduled REST snapshot is genuine data, but it is not a streaming quote.
+        status = "scheduled" if snap["market_open"] else "closed"
+    elif age < max(600, poll_s * 2):
         status = "delayed"
     else:
         status = "replay"

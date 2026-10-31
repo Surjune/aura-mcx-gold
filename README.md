@@ -141,9 +141,12 @@ To use Angel One as the live data transport, copy `.env.example` to `.env`, add 
 credentials, set `LIVE_SOURCE=angelone`, and run the same `python -m aura.live` command. The default
 is `LIVE_SOURCE=mcx`, so this addition does not change the existing monitor or dashboard.
 
-For a globally shared 24/7 feed, deploy the standalone worker defined in `render.yaml`. It publishes
-to Upstash Redis, which Vercel reads before any local/archive fallback. See
-[`docs/cloud-worker.md`](docs/cloud-worker.md) for the required secrets, Render setup, and health checks.
+For a globally shared automated feed without a persistent host, use the secured serverless endpoint
+and GitHub Actions schedule in [`docs/free-serverless-poller.md`](docs/free-serverless-poller.md).
+It publishes to Upstash Redis, which Vercel reads before any local/archive fallback. The free route
+updates every 15 minutes and is labelled as scheduled—not falsely presented as a 15-second stream.
+For genuine continuous streaming, the optional persistent-worker deployment remains documented in
+[`docs/cloud-worker.md`](docs/cloud-worker.md).
 
 Every raw MCX response is cached in `data/raw/`, so results are reproducible and re-runs never
 fetch a day twice.
@@ -161,7 +164,8 @@ tests/       units, date parsing, costs, no look-ahead, live flag rules, API fal
 - **Backtest fills** use the daily close plus assumed slippage; intraday order-book history isn't public. The live monitor does use the real bid/ask.
 - **Brokerage and slippage are assumptions.** Statutory rates should be checked against a broker contract note.
 - **Short history:** GOLDTEN listed in April 2025, so the holdout has only 6 trades. That's why the bootstrap and deflated Sharpe are reported alongside the raw numbers.
-- **The live feed needs a machine running the poller.** A production version would use a licensed broker data feed for 24/7 coverage.
+- **Free scheduled mode is not streaming.** It refreshes every 15 minutes via GitHub Actions and
+  is subject to scheduler delay. The persistent Angel One worker remains the route for 15-second coverage.
 
 ## Team Lightning Logics
 

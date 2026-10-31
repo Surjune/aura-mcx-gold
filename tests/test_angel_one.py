@@ -2,7 +2,8 @@ from datetime import date
 
 import pytest
 
-from aura.angel_one import Instrument, parse_expiry, pick_contracts_from_master, quote_from_tick, resolve_instruments
+from aura.angel_one import (Instrument, parse_expiry, pick_contracts_from_master,
+                             quote_from_market_data, quote_from_tick, resolve_instruments)
 
 
 def test_parse_angel_expiry_formats():
@@ -70,3 +71,20 @@ def test_quote_depth_converts_every_level_from_paise():
     }, item, 100)
     assert quote["depth"] == [{"bid": 145350, "bid_qty": 7, "ask": 145370, "ask_qty": 5},
                               {"bid": 145340, "bid_qty": 3, "ask": None, "ask_qty": None}]
+
+
+def test_rest_market_data_quote_uses_the_same_paise_and_depth_rules():
+    item = Instrument("petal", "GOLDPETAL", date(2026, 10, 30), "103")
+    quote = quote_from_market_data({
+        "ltp": 1471400,
+        "close": 1460000,
+        "percentChange": 0.78,
+        "tradeVolume": 12,
+        "opnInterest": 9,
+        "depth": {
+            "buy": [{"price": 1471300, "quantity": 7}],
+            "sell": [{"price": 1471500, "quantity": 5}],
+        },
+    }, item, 100)
+    assert (quote["ltp"], quote["bid"], quote["ask"], quote["prev_close"]) == (14714, 14713, 14715, 14600)
+    assert quote["depth"] == [{"bid": 14713, "bid_qty": 7, "ask": 14715, "ask_qty": 5}]

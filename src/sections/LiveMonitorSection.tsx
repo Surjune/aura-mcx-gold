@@ -20,6 +20,7 @@ export const LiveMonitorSection: React.FC = () => {
   const petalFlagLevel = petalMean !== undefined && hurdle !== undefined ? petalMean + hurdle : undefined;
   const pollSeconds = snapshot?.poll_s ?? 15;
   const cloudFreshnessSeconds = live?.fresh_after_s ?? 45;
+  const pollIntervalLabel = pollSeconds >= 60 ? `${Math.round(pollSeconds / 60)} min` : `${pollSeconds}s`;
 
   const feed = describeFeed(live);
   const age = formatAge(live?.age_s);
@@ -51,6 +52,8 @@ export const LiveMonitorSection: React.FC = () => {
              `The poller is running but MCX is not trading. Showing the last snapshot, recorded at ${polledTime}. No trades are suggested.`],
     delayed: ['Live Feed Delayed',
               `The last update arrived ${age ?? 'a while ago'}. Readings may be out of date, so no decision is made until the feed catches up.`],
+    scheduled: ['Automated 15-Minute Market Update',
+                `This is a real broker snapshot collected on the free serverless schedule. It is not a streaming quote, so AuRA does not issue a trading decision from it.`],
     replay: ['Not Live: Replaying the Last Real Session',
              `No live poller is publishing right now. The quotes below were recorded at ${polledTime}${age ? ` (${age})` : ''} and are shown for reference only. No current decision is made.`],
     offline: ['Live Feed Offline', 'No live or archived MCX snapshot is available right now.'],
@@ -110,7 +113,7 @@ export const LiveMonitorSection: React.FC = () => {
         <SectionHeading
           eyebrow="Real-Time MCX Quote Feed"
           title="Live MCX Gold Contract Monitor"
-          description="AuRA monitors live quote streams and 5-level order books every 15 seconds to determine whether any intraday price difference remains profitable after estimated exchange fees, stamp duty, CTT, and bid-ask slippage."
+          description={`AuRA evaluates MCX quote snapshots and 5-level order books every ${pollIntervalLabel} to determine whether any observed price difference remains profitable after estimated exchange fees, stamp duty, CTT, and bid-ask slippage.`}
         />
 
         {/* Clear Institutional Disclaimer Note */}
@@ -135,7 +138,7 @@ export const LiveMonitorSection: React.FC = () => {
             It evaluates live market depth to filter out false arbitrage opportunities.
           </span>
           <span className="live-pill font-mono" style={{ fontSize: '11px' }}>
-            Poll Interval: {pollSeconds}s
+            Poll Interval: {pollIntervalLabel}
           </span>
         </div>
 
@@ -161,7 +164,7 @@ export const LiveMonitorSection: React.FC = () => {
             </span>
 
             <span className="live-pill font-mono">
-              Cloud freshness: ≤ {cloudFreshnessSeconds}s
+              Streaming freshness: ≤ {cloudFreshnessSeconds}s
             </span>
 
             <span className="live-pill">

@@ -170,19 +170,28 @@ def market_open(now: datetime) -> bool:
     return now.weekday() < 5 and (h0, m0) <= (now.hour, now.minute) <= (h1, m1)
 
 
-def publish(snap: dict) -> None:
+def publish(snap: dict) -> bool:
     # Ticks are stamped with the poll time: MCX's own "as on" stamp only moves once a minute.
     tick = {"t": round(snap["published"]), **{f"p{i}": round(p["premium_bps"], 2) for i, p in enumerate(snap["pairs"])},
             **{f"e{i}": (round(p["exec_sell_bps"], 2) if p["exec_sell_bps"] is not None else None) for i, p in enumerate(snap["pairs"])}}
-    ticks = json.loads(TICKS.read_text(encoding="utf-8")) if TICKS.exists() else []
-    day = lambda ts: datetime.fromtimestamp(ts, IST).date()
-    new_day = bool(ticks) and day(ticks[-1]["t"]) != day(tick["t"])
-    if new_day:  # one chart per trading day
-        ticks = []
-    if not ticks or ticks[-1]["t"] != tick["t"]:
-        ticks = (ticks + [tick])[-MAX_TICKS:]
-    LIVE.write_text(json.dumps(snap), encoding="utf-8")
-    TICKS.write_text(json.dumps(ticks), encoding="utf-8")
+    # A developer machine keeps a local session copy. Vercel's filesystem is ephemeral
+    # and can be read-only, so a serverless invocation must still be able to publish the
+    # authoritative Upstash snapshot when these writes are unavailable.
+    new_day = False
+    try:
+        ticks = json.loads(TICKS.read_text(encoding="utf-8")) if TICKS.exists() else []
+        day = lambda ts: datetime.fromtimestamp(ts, IST).date()
+        new_day = bool(ticks) and day(ticks[-1]["t"]) != day(tick["t"])
+        if new_day:  # one chart per trading day
+            ticks = []
+        if not ticks or ticks[-1]["t"] != tick["t"]:
+            ticks = (ticks + [tick])[-MAX_TICKS:]
+        LIVE.write_text(json.dumps(snap), encoding="utf-8")
+        TICKS.write_text(json.dumps(ticks), encoding="utf-8")
+    except OSError:
+        # Upstash is the shared source of truth in serverless mode. The Redis list is
+        # still bounded below; it just cannot be reset from an ephemeral local file.
+        new_day = False
     url, token = upstash()
     if url and token:
         # No expiry: when the poller stops, viewers still see the last real snapshot, marked by its age.
@@ -196,8 +205,11 @@ def publish(snap: dict) -> None:
         try:
             with urllib.request.urlopen(req, timeout=10) as r:
                 r.read()
+            return True
         except (urllib.error.URLError, TimeoutError) as exc:
             print(datetime.now(IST).strftime("%H:%M:%S"), "Upstash publish failed:", exc, flush=True)
+            return False
+    return False
 
 
 def save_session(reason: str) -> None:

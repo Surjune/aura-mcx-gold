@@ -189,7 +189,7 @@ export interface LiveTick {
 }
 
 export interface LiveApiResponse {
-  status: 'live' | 'closed' | 'delayed' | 'replay' | 'offline';
+  status: 'live' | 'scheduled' | 'closed' | 'delayed' | 'replay' | 'offline';
   age_s?: number;
   /** A cloud snapshot must be newer than this to be called globally live. */
   fresh_after_s?: number;

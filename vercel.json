@@ -4,7 +4,8 @@
   "outputDirectory": "public",
   "functions": {
     "api/index.py": {
-      "includeFiles": "{aura/**,data/results.json,data/last_session.json}"
+      "includeFiles": "{aura/**,data/results.json,data/last_session.json}",
+      "maxDuration": 60
     }
   },
   "rewrites": [

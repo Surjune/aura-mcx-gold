@@ -1,0 +1,27 @@
+name: Poll MCX market data
+
+on:
+  schedule:
+    # 09:00–09:45 IST (UTC is used by GitHub Actions cron).
+    - cron: '30,45 3 * * 1-5'
+    # 09:30–23:45 IST, Monday–Friday, at 15-minute intervals.
+    - cron: '*/15 4-17 * * 1-5'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Request one protected market-data update
+        env:
+          AURA_POLL_URL: ${{ secrets.AURA_POLL_URL }}
+          POLL_SECRET: ${{ secrets.POLL_SECRET }}
+        run: |
+          test -n "$AURA_POLL_URL"
+          test -n "$POLL_SECRET"
+          curl --fail --silent --show-error --retry 2 --max-time 55 \
+            -H "Authorization: Bearer $POLL_SECRET" \
+            "$AURA_POLL_URL"

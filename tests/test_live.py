@@ -104,6 +104,36 @@ def test_api_uses_45_second_cloud_freshness_contract(tmp_path, monkeypatch):
     assert api.live()["status"] == "delayed"
 
 
+def test_api_labels_a_recent_scheduled_snapshot_without_calling_it_streaming_live(tmp_path, monkeypatch):
+    import time
+    from aura import api
+    monkeypatch.setattr(api, "LIVE", tmp_path / "live.json")
+    monkeypatch.setattr(api, "TICKS", tmp_path / "ticks.json")
+    monkeypatch.setenv("LIVE_FRESH_SECONDS", "45")
+    for key in ("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"):
+        monkeypatch.delenv(key, raising=False)
+    (tmp_path / "live.json").write_text(json.dumps({
+        "published": time.time() - 300, "poll_s": 900, "market_open": True, "pairs": []
+    }))
+    out = api.live()
+    assert out["status"] == "scheduled" and out["source"] == "local"
+
+
+def test_poll_endpoint_never_accepts_an_unconfigured_or_incorrect_secret(monkeypatch):
+    from fastapi import HTTPException
+    from aura import api
+    monkeypatch.delenv("POLL_SECRET", raising=False)
+    with pytest.raises(HTTPException) as unconfigured:
+        api._require_poll_authorization("Bearer anything")
+    assert unconfigured.value.status_code == 503
+
+    monkeypatch.setenv("POLL_SECRET", "right-secret")
+    with pytest.raises(HTTPException) as incorrect:
+        api._require_poll_authorization("Bearer wrong-secret")
+    assert incorrect.value.status_code == 401
+    api._require_poll_authorization("Bearer right-secret")
+
+
 def test_different_expiry_pair_is_never_flagged():
     p = classify("GOLDM", 60.0, None, None, HIST, hurdle=13.0, tradeable=False)
     assert p["status"] == "watch"

@@ -204,6 +204,90 @@ def quote_from_tick(tick: dict[str, Any], instrument: Instrument, divisor: float
     }
 
 
+def quote_from_market_data(row: dict[str, Any], instrument: Instrument, divisor: float) -> dict[str, Any]:
+    """Convert a SmartAPI REST ``FULL`` quote into AuRA's quote shape.
+
+    The persistent worker uses SmartAPI's WebSocket. Serverless functions cannot keep a
+    socket open, so the free scheduler uses the broker's one-shot market-data endpoint
+    instead. Both paths preserve the same five-leg, exact-expiry calculation downstream.
+    """
+    ltp_raw = _number(row.get("ltp", row.get("last_traded_price")))
+    if ltp_raw is None:
+        raise ValueError(f"REST quote for {instrument.symbol} has no ltp")
+    book = row.get("depth") if isinstance(row.get("depth"), dict) else {}
+    buys = book.get("buy", row.get("best_5_buy_data"))
+    sells = book.get("sell", row.get("best_5_sell_data"))
+    bid = _best_price(buys, "price", divisor)
+    ask = _best_price(sells, "price", divisor)
+    ltp = ltp_raw / divisor
+    close_raw = _number(row.get("close", row.get("closed_price")))
+    prev_close = close_raw / divisor if close_raw is not None else None
+    return {
+        "symbol": instrument.symbol,
+        "expiry": instrument.expiry.isoformat(),
+        "ltp": ltp,
+        "bid": bid,
+        "ask": ask,
+        "prev_close": prev_close,
+        "change_pct": _number(row.get("percentChange", row.get("change_pct"))),
+        "volume": row.get("tradeVolume", row.get("volume_trade_today", row.get("volume"))),
+        "oi": row.get("opnInterest", row.get("open_interest")),
+        # SmartAPI's REST response does not guarantee an exchange timestamp in every
+        # mode. The server receipt time is therefore explicit rather than fabricated.
+        "as_on": time.time(),
+        "spread_bps": (ask - bid) / ((ask + bid) / 2) * 1e4 if bid and ask else None,
+        "fine": fine_per_gram(instrument.symbol, ltp),
+        "depth": _depth(buys, sells, divisor),
+    }
+
+
+def serverless_poll_seconds() -> int:
+    """Nominal interval advertised by the serverless scheduler, in seconds."""
+    try:
+        return max(60, int(os.environ.get("SERVERLESS_POLL_SECONDS", "900")))
+    except ValueError as exc:
+        raise ValueError("SERVERLESS_POLL_SECONDS must be a positive integer") from exc
+
+
+def poll_once() -> dict[str, Any]:
+    """Fetch one five-leg SmartAPI snapshot for a serverless invocation.
+
+    This function only reads market data and returns an in-memory snapshot. Publishing is
+    deliberately left to the API endpoint, which confirms the shared Upstash write.
+    """
+    load_env()
+    settings = AngelSettings.from_env()
+    try:
+        import pyotp
+        from SmartApi import SmartConnect
+    except ImportError as exc:
+        raise RuntimeError("Install Angel One dependencies: pip install -r requirements.txt") from exc
+
+    master = fetch_instrument_master()
+    now = datetime.now(IST)
+    contracts = pick_contracts_from_master(now.date(), master)
+    instruments = resolve_instruments(contracts, master)
+    smart = SmartConnect(api_key=settings.api_key)
+    session = smart.generateSession(settings.client_code, settings.pin, pyotp.TOTP(settings.totp_secret).now())
+    if not session or not session.get("status"):
+        raise RuntimeError("Angel One login failed")
+    response = smart.getMarketData("FULL", {"MCX": [item.token for item in instruments.values()]})
+    if not response or not response.get("status"):
+        raise RuntimeError("Angel One market-data request failed")
+    fetched = response.get("data", {}).get("fetched", [])
+    by_token = {str(row.get("symbolToken", row.get("token", ""))): row for row in fetched if isinstance(row, dict)}
+    quotes: dict[str, dict[str, Any]] = {}
+    for leg, instrument in instruments.items():
+        row = by_token.get(instrument.token)
+        if row is None:
+            raise RuntimeError(f"Angel One did not return a quote for {instrument.symbol} ({instrument.token})")
+        quotes[leg] = quote_from_market_data(row, instrument, settings.price_divisor)
+    live = snapshot(quotes, history(), contracts)
+    live.update({"feed_source": "angelone_rest", "poll_s": serverless_poll_seconds(),
+                 "market_open": market_open(now)})
+    return live
+
+
 class AngelOneMonitor:
     """Collect a coherent five-leg quote set and publish it through the existing backend."""
     def __init__(self, instruments: dict[str, Instrument], contracts: dict[str, date], hist: dict, settings: AngelSettings):
