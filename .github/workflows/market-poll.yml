@@ -20,8 +20,14 @@ jobs:
           AURA_POLL_URL: ${{ secrets.AURA_POLL_URL }}
           POLL_SECRET: ${{ secrets.POLL_SECRET }}
         run: |
-          test -n "$AURA_POLL_URL"
-          test -n "$POLL_SECRET"
+          if [ -z "$AURA_POLL_URL" ]; then
+            echo "::error title=Missing AURA_POLL_URL::Add the GitHub Actions secret with https://aura.lightninglogics.me/api/poll"
+            exit 1
+          fi
+          if [ -z "$POLL_SECRET" ]; then
+            echo "::error title=Missing POLL_SECRET::Add the GitHub Actions secret and make it exactly match Vercel's POLL_SECRET."
+            exit 1
+          fi
           curl --fail --silent --show-error --retry 2 --max-time 55 \
             -H "Authorization: Bearer $POLL_SECRET" \
             "$AURA_POLL_URL"
