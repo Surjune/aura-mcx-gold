@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from aura.config import upstash
+from aura.config import live_fresh_seconds, upstash
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "data" / "results.json"
@@ -98,15 +98,17 @@ def live() -> dict:
     if snap is None:
         return {"status": "offline", "source": None, "ticks": []}
     age = time.time() - snap["published"]
+    fresh_after_s = live_fresh_seconds()
     if source == "session archive":  # a frozen copy is never live, however recent
         status = "replay"
-    elif age < 3 * snap["poll_s"]:
+    elif age <= fresh_after_s:
         status = "live" if snap["market_open"] else "closed"
     elif age < 600:
         status = "delayed"
     else:
         status = "replay"
-    return {"status": status, "age_s": age, "source": source, "snapshot": snap, "ticks": ticks}
+    return {"status": status, "age_s": age, "fresh_after_s": fresh_after_s,
+            "source": source, "snapshot": snap, "ticks": ticks}
 
 
 @app.get("/")

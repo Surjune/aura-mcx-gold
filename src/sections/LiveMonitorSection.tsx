@@ -19,6 +19,7 @@ export const LiveMonitorSection: React.FC = () => {
   const petalMean = pairs[0]?.mean_bps;
   const petalFlagLevel = petalMean !== undefined && hurdle !== undefined ? petalMean + hurdle : undefined;
   const pollSeconds = snapshot?.poll_s ?? 15;
+  const cloudFreshnessSeconds = live?.fresh_after_s ?? 45;
 
   const feed = describeFeed(live);
   const age = formatAge(live?.age_s);
@@ -157,6 +158,10 @@ export const LiveMonitorSection: React.FC = () => {
             <span className="live-pill font-mono">
               {feed.isLive ? 'Last Poll' : 'Recorded'}: {polledTime}
               {age && !feed.isLive ? ` · ${age}` : ''}
+            </span>
+
+            <span className="live-pill font-mono">
+              Cloud freshness: ≤ {cloudFreshnessSeconds}s
             </span>
 
             <span className="live-pill">

@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
-from aura.live import DEPTH_LEVELS, IST, depth_level, history, load_env, market_open, pick_contracts, publish, snapshot
+from aura.analytics import MIN_DTE
+from aura.live import DEPTH_LEVELS, IST, depth_level, history, load_env, market_open, publish, snapshot
 from aura.specs import fine_per_gram
 
 INSTRUMENT_MASTER_URL = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
@@ -79,6 +80,25 @@ def fetch_instrument_master(url: str | None = None) -> list[dict[str, Any]]:
     if not isinstance(payload, list):
         raise RuntimeError("Angel One instrument master returned an unexpected response")
     return payload
+
+
+def pick_contracts_from_master(today: date, rows: list[dict[str, Any]]) -> dict[str, date]:
+    """Choose live legs from Angel One's current MCX master, without a local DuckDB file.
+
+    A cloud worker must not depend on the research database that lives on a developer's
+    machine. Exact expiry dates still remain the contract identity throughout the monitor.
+    """
+    expiries: dict[str, set[date]] = {"GOLDTEN": set(), "GOLDM": set()}
+    for row in rows:
+        symbol = str(row.get("name", "")).upper()
+        expiry = parse_expiry(row.get("expiry"))
+        if (str(row.get("exch_seg", "")).upper() == "MCX" and symbol in expiries
+                and expiry is not None and (expiry - today).days >= MIN_DTE):
+            expiries[symbol].add(expiry)
+    ten, goldm = sorted(expiries["GOLDTEN"]), sorted(expiries["GOLDM"])
+    if len(ten) < 2 or not goldm:
+        raise RuntimeError("Angel One master has insufficient eligible MCX GOLDTEN/GOLDM expiries")
+    return {"ten": ten[0], "ten_next": ten[1], "m": goldm[0]}
 
 
 def token_overrides() -> dict[str, str] | None:
@@ -238,8 +258,9 @@ def run() -> None:
     print("Starting Angel One monitor in monitor-only mode; no order APIs are used.", flush=True)
     while True:
         try:
-            contracts = pick_contracts(datetime.now(IST).date())
-            instruments = resolve_instruments(contracts, fetch_instrument_master())
+            master = fetch_instrument_master()
+            contracts = pick_contracts_from_master(datetime.now(IST).date(), master)
+            instruments = resolve_instruments(contracts, master)
             smart = SmartConnect(api_key=settings.api_key)
             session = smart.generateSession(settings.client_code, settings.pin, pyotp.TOTP(settings.totp_secret).now())
             if not session or not session.get("status"):

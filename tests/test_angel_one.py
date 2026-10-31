@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from aura.angel_one import Instrument, parse_expiry, quote_from_tick, resolve_instruments
+from aura.angel_one import Instrument, parse_expiry, pick_contracts_from_master, quote_from_tick, resolve_instruments
 
 
 def test_parse_angel_expiry_formats():
@@ -28,6 +28,18 @@ def test_resolve_instruments_uses_exact_symbol_and_expiry(monkeypatch):
     instruments = resolve_instruments(contracts, rows)
     assert {leg: item.token for leg, item in instruments.items()} == {
         "ten": "101", "ten_next": "102", "petal": "103", "guinea": "104", "m": "105"}
+
+
+def test_cloud_worker_can_select_contracts_from_instrument_master_without_duckdb():
+    rows = [
+        {"exch_seg": "MCX", "name": "GOLDTEN", "expiry": "30OCT2026"},
+        {"exch_seg": "MCX", "name": "GOLDTEN", "expiry": "30NOV2026"},
+        {"exch_seg": "MCX", "name": "GOLDM", "expiry": "05NOV2026"},
+        # Expiry too close to delivery must not be used.
+        {"exch_seg": "MCX", "name": "GOLDTEN", "expiry": "24OCT2026"},
+    ]
+    assert pick_contracts_from_master(date(2026, 10, 20), rows) == {
+        "ten": date(2026, 10, 30), "ten_next": date(2026, 11, 30), "m": date(2026, 11, 5)}
 
 
 def test_quote_from_snap_quote_converts_paise_and_best_bid_ask():

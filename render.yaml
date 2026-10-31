@@ -1,0 +1,33 @@
+services:
+  - type: worker
+    name: aura-live-mcx-poller
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python -u -m aura.worker
+    autoDeploy: true
+    plan: starter
+    envVars:
+      - key: LIVE_SOURCE
+        value: angelone
+      - key: MONITOR_ONLY
+        value: "true"
+      - key: LIVE_FRESH_SECONDS
+        value: "45"
+      - key: ANGEL_MCX_EXCHANGE_TYPE
+        value: "5"
+      - key: ANGEL_PRICE_DIVISOR
+        value: "100"
+      - key: ANGEL_PUBLISH_SECONDS
+        value: "15"
+      - key: KV_REST_API_URL
+        sync: false
+      - key: KV_REST_API_TOKEN
+        sync: false
+      - key: ANGEL_API_KEY
+        sync: false
+      - key: ANGEL_CLIENT_CODE
+        sync: false
+      - key: ANGEL_PIN
+        sync: false
+      - key: ANGEL_TOTP_SECRET
+        sync: false

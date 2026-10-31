@@ -87,6 +87,23 @@ def test_api_reports_live_for_a_fresh_snapshot(tmp_path, monkeypatch):
     assert api.live()["status"] == "live"
 
 
+def test_api_uses_45_second_cloud_freshness_contract(tmp_path, monkeypatch):
+    import time
+    from aura import api
+    monkeypatch.setattr(api, "LIVE", tmp_path / "live.json")
+    monkeypatch.setattr(api, "TICKS", tmp_path / "ticks.json")
+    monkeypatch.setenv("LIVE_FRESH_SECONDS", "45")
+    for key in ("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"):
+        monkeypatch.delenv(key, raising=False)
+
+    (tmp_path / "live.json").write_text(json.dumps({"published": time.time() - 44, "poll_s": 15, "market_open": True}))
+    fresh = api.live()
+    assert fresh["status"] == "live" and fresh["fresh_after_s"] == 45
+
+    (tmp_path / "live.json").write_text(json.dumps({"published": time.time() - 46, "poll_s": 15, "market_open": True}))
+    assert api.live()["status"] == "delayed"
+
+
 def test_different_expiry_pair_is_never_flagged():
     p = classify("GOLDM", 60.0, None, None, HIST, hurdle=13.0, tradeable=False)
     assert p["status"] == "watch"

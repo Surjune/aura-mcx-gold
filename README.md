@@ -141,6 +141,10 @@ To use Angel One as the live data transport, copy `.env.example` to `.env`, add 
 credentials, set `LIVE_SOURCE=angelone`, and run the same `python -m aura.live` command. The default
 is `LIVE_SOURCE=mcx`, so this addition does not change the existing monitor or dashboard.
 
+For a globally shared 24/7 feed, deploy the standalone worker defined in `render.yaml`. It publishes
+to Upstash Redis, which Vercel reads before any local/archive fallback. See
+[`docs/cloud-worker.md`](docs/cloud-worker.md) for the required secrets, Render setup, and health checks.
+
 Every raw MCX response is cached in `data/raw/`, so results are reproducible and re-runs never
 fetch a day twice.
 

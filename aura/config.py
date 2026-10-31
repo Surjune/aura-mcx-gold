@@ -22,3 +22,11 @@ def angel_one_ready() -> bool:
     """Whether all credentials required to start the monitor are present."""
     return all(os.environ.get(key, "").strip() for key in (
         "ANGEL_API_KEY", "ANGEL_CLIENT_CODE", "ANGEL_PIN", "ANGEL_TOTP_SECRET"))
+
+
+def live_fresh_seconds() -> int:
+    """Maximum snapshot age that can be displayed as a globally live feed."""
+    try:
+        return max(1, int(os.environ.get("LIVE_FRESH_SECONDS", "45")))
+    except ValueError as exc:
+        raise ValueError("LIVE_FRESH_SECONDS must be a positive integer") from exc

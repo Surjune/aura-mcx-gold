@@ -232,8 +232,12 @@ def run() -> None:
     while True:
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(channel="msedge", headless=True,
-                                            args=["--disable-blink-features=AutomationControlled"])
+                # Local Windows deployments use Edge by default. Cloud images normally
+                # ship Chromium instead, selected by PLAYWRIGHT_BROWSER=chromium.
+                browser_name = os.environ.get("PLAYWRIGHT_BROWSER", "msedge").strip().lower()
+                launch_args = {"headless": True, "args": ["--disable-blink-features=AutomationControlled"]}
+                browser = (p.chromium.launch(**launch_args) if browser_name == "chromium"
+                           else p.chromium.launch(channel=browser_name, **launch_args))
                 page = browser.new_context(user_agent=USER_AGENT, locale="en-IN").new_page()
                 loop(page, hist, remote)
         except KeyboardInterrupt:

@@ -22,7 +22,7 @@ export interface FeedDescription {
 const MUTED_DOT = '#94A3B8';
 
 const FEED_STATES: Record<FeedState, Omit<FeedDescription, 'state' | 'isLive'>> = {
-  live: { marketLabel: 'MCX Market Open', headerLabel: 'Live', stateTag: 'LIVE', pillClass: 'market-state', dotColor: 'var(--semantic-emerald)' },
+  live: { marketLabel: 'Live Feed Active', headerLabel: 'Live', stateTag: 'LIVE FEED ACTIVE', pillClass: 'market-state', dotColor: 'var(--semantic-emerald)' },
   closed: { marketLabel: 'MCX Market Closed', headerLabel: 'MCX Closed', stateTag: 'MARKET CLOSED', pillClass: 'closed-state', dotColor: MUTED_DOT },
   delayed: { marketLabel: 'Feed Delayed', headerLabel: 'Delayed', stateTag: 'DELAYED', pillClass: 'watch-state', dotColor: 'var(--semantic-amber)' },
   replay: { marketLabel: 'Not Live', headerLabel: 'Replay', stateTag: 'ARCHIVE REPLAY', pillClass: 'watch-state', dotColor: MUTED_DOT },
