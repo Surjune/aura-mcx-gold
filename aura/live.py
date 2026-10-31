@@ -22,14 +22,12 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-import duckdb
-
-from aura.analytics import MIN_DTE
-from aura.ingest import DB, USER_AGENT
+from aura.constants import MIN_DTE, USER_AGENT
 from aura.config import upstash
 from aura.specs import BASE, fine_per_gram
 
 ROOT = Path(__file__).resolve().parent.parent
+DB = ROOT / "data" / "aura.duckdb"  # Needed only by the local Playwright/MCX monitor.
 RESULTS = ROOT / "data" / "results.json"
 LIVE = ROOT / "data" / "live.json"
 TICKS = ROOT / "data" / "live_ticks.json"
@@ -63,6 +61,10 @@ def load_env() -> None:
 
 def pick_contracts(today: date) -> dict[str, date]:
     """Front GOLDTEN expiry outside the delivery window, the next one for the curve, GOLDM front."""
+    # DuckDB is intentionally local-only. The Vercel poller resolves contracts from
+    # Angel One's instrument master and must not install the research stack.
+    import duckdb
+
     con = duckdb.connect(str(DB), read_only=True)
     rows = con.execute("SELECT DISTINCT symbol, expiry FROM bhavcopy WHERE expiry >= ? ORDER BY expiry", [today]).fetchall()
     con.close()

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
-from aura.analytics import MIN_DTE
+from aura.constants import MIN_DTE
 from aura.live import DEPTH_LEVELS, IST, depth_level, history, load_env, market_open, publish, snapshot
 from aura.specs import fine_per_gram
 

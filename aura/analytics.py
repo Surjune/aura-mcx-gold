@@ -5,10 +5,10 @@ import duckdb
 import numpy as np
 import pandas as pd
 
+from aura.constants import MIN_DTE
 from aura.specs import BASE, CONTRACTS, SYMBOLS, fine_per_gram
 
 DB = Path(__file__).resolve().parent.parent / "data" / "aura.duckdb"
-MIN_DTE = 7            # days: contracts this close to expiry are in the delivery window, never used
 DELIVERY_WINDOW_SESSIONS = 5  # staggered-delivery period before expiry (brokers ask to exit ~5 sessions early)
 LIQUID_SHARE = 0.5     # a contract is "mature" once it carries this share of its symbol's open interest
 

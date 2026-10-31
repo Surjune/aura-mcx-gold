@@ -16,6 +16,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
+from aura.constants import USER_AGENT
 from aura.specs import SYMBOLS
 
 PAGE = "https://www.mcxindia.com/market-data/bhavcopy"
@@ -26,8 +27,6 @@ DB = DATA / "aura.duckdb"
 PAUSE_S = 0.35  # stay polite to the exchange site
 # The edge answers 403 to Playwright's default headless fingerprint; a normal desktop
 # user agent with the automation flag off is served like any browser.
-USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-              "Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0")
 
 FETCH_JS = """async (q) => {
   const r = await fetch(%r + '?InstrumentName=FUTCOM&fromDate=' + encodeURIComponent(q),
