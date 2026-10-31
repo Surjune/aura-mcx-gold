@@ -131,6 +131,9 @@ def test_poll_endpoint_never_accepts_an_unconfigured_or_incorrect_secret(monkeyp
     with pytest.raises(HTTPException) as incorrect:
         api._require_poll_authorization("Bearer wrong-secret")
     assert incorrect.value.status_code == 401
+    with pytest.raises(HTTPException) as missing_scheme:
+        api._require_poll_authorization("right-secret")
+    assert missing_scheme.value.status_code == 401
     api._require_poll_authorization("Bearer right-secret")
 
 

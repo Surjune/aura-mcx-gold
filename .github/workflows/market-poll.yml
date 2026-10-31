@@ -41,5 +41,5 @@ jobs:
               ;;
           esac
           curl --fail --silent --show-error --retry 2 --max-time 55 \
-            -H "Authorization: $POLL_SECRET" \
+            -H "Authorization: Bearer $POLL_SECRET" \
             "$POLL_URL"
